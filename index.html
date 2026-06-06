@@ -17,7 +17,6 @@
   html, body { width:100%; height:100%; background:var(--bg); color:var(--text); font-family:'Rajdhani',sans-serif; overflow:hidden; }
   body::before { content:''; position:fixed; inset:0; background-image:linear-gradient(rgba(0,212,255,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(0,212,255,0.03) 1px,transparent 1px); background-size:40px 40px; pointer-events:none; z-index:0; }
   #app { position:relative; z-index:1; width:100%; height:100%; display:flex; flex-direction:column; }
-
   header { flex-shrink:0; display:flex; align-items:center; justify-content:space-between; padding:14px 24px; border-bottom:1px solid var(--border); background:var(--panel); backdrop-filter:blur(20px); }
   .logo { display:flex; align-items:center; gap:12px; }
   .logo-text { font-size:20px; font-weight:700; letter-spacing:6px; color:var(--primary); text-shadow:0 0 20px var(--primary-glow); }
@@ -26,9 +25,7 @@
   .status-dot { width:6px; height:6px; border-radius:50%; background:var(--success); box-shadow:0 0 8px var(--success); animation:pulse 2s infinite; }
   @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
   .clock { color:var(--primary); }
-
   .main { flex:1; min-height:0; display:flex; overflow:hidden; }
-
   .sidebar { width:200px; flex-shrink:0; border-right:1px solid var(--border); background:var(--panel); backdrop-filter:blur(20px); display:flex; flex-direction:column; padding:16px 0; overflow-y:auto; }
   .sidebar-label { font-size:9px; letter-spacing:3px; color:var(--text-dim); font-family:'Share Tech Mono',monospace; padding:0 20px 8px; }
   .sys-btn { display:flex; align-items:center; gap:10px; padding:9px 16px; cursor:pointer; font-size:13px; font-weight:500; letter-spacing:1px; color:var(--text-dim); border:1px solid transparent; margin:1px 8px; border-radius:4px; transition:all 0.2s; }
@@ -40,20 +37,16 @@
   .persona-label { font-size:9px; letter-spacing:2px; color:var(--text-dim); font-family:'Share Tech Mono',monospace; margin-bottom:4px; }
   .persona-name { font-size:14px; font-weight:600; color:var(--primary); letter-spacing:2px; }
   .persona-desc { font-size:11px; color:var(--text-dim); margin-top:3px; line-height:1.4; }
-
-  /* MEMORY BOX */
   .memory-box { margin:0 12px; padding:10px; border:1px solid rgba(0,255,157,0.2); border-radius:6px; background:rgba(0,255,157,0.04); }
   .memory-label { font-size:9px; letter-spacing:2px; color:var(--success); font-family:'Share Tech Mono',monospace; margin-bottom:6px; }
-  .memory-item { font-size:11px; color:var(--text-dim); line-height:1.5; margin-bottom:3px; }
+  .memory-item { font-size:11px; color:var(--text-dim); line-height:1.6; }
   .memory-item span { color:var(--text); }
   .memory-clear { font-size:10px; color:rgba(255,107,53,0.6); cursor:pointer; margin-top:6px; font-family:'Share Tech Mono',monospace; }
   .memory-clear:hover { color:var(--accent); }
-
   .chat-area { flex:1; min-width:0; display:flex; flex-direction:column; overflow:hidden; }
   .messages { flex:1; min-height:0; overflow-y:auto; overflow-x:hidden; padding:20px 24px; display:flex; flex-direction:column; gap:14px; scroll-behavior:smooth; }
   .messages::-webkit-scrollbar { width:4px; }
   .messages::-webkit-scrollbar-thumb { background:var(--border); border-radius:2px; }
-
   .welcome { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px; padding:40px; text-align:center; }
   .welcome h2 { font-size:28px; font-weight:700; letter-spacing:8px; color:var(--primary); text-shadow:0 0 30px var(--primary-glow); }
   .welcome p { color:var(--text-dim); font-size:13px; letter-spacing:1px; max-width:380px; line-height:1.7; }
@@ -63,7 +56,6 @@
   .suggestions { display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin-top:8px; }
   .sug-btn { padding:7px 14px; border:1px solid var(--border); background:var(--primary-dim); color:var(--primary); border-radius:4px; cursor:pointer; font-size:12px; font-family:'Rajdhani',sans-serif; letter-spacing:1px; font-weight:500; transition:all 0.2s; }
   .sug-btn:hover { background:rgba(0,212,255,0.22); transform:translateY(-1px); }
-
   .msg { display:flex; gap:12px; align-items:flex-start; animation:fadeUp 0.3s ease; max-width:100%; }
   .msg.user { align-self:flex-end; flex-direction:row-reverse; }
   @keyframes fadeUp { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
@@ -80,7 +72,6 @@
   .typing span { width:6px; height:6px; border-radius:50%; background:var(--primary); animation:blink 1.2s infinite; }
   .typing span:nth-child(2){animation-delay:0.2s} .typing span:nth-child(3){animation-delay:0.4s}
   @keyframes blink { 0%,80%,100%{opacity:0.2;transform:scale(0.8)} 40%{opacity:1;transform:scale(1)} }
-
   .input-area { flex-shrink:0; padding:14px 24px 18px; border-top:1px solid var(--border); background:var(--panel); backdrop-filter:blur(20px); }
   .input-row { display:flex; gap:10px; align-items:flex-end; }
   .input-wrap { flex:1; position:relative; }
@@ -92,7 +83,6 @@
   .send-btn:hover:not(:disabled) { background:rgba(0,212,255,0.22); box-shadow:0 0 18px rgba(0,212,255,0.25); }
   .send-btn:disabled { opacity:0.4; cursor:not-allowed; }
   .input-footer { display:flex; justify-content:space-between; margin-top:7px; font-family:'Share Tech Mono',monospace; font-size:10px; color:var(--text-dim); }
-
   .sys-panel { width:180px; flex-shrink:0; border-left:1px solid var(--border); background:var(--panel); backdrop-filter:blur(20px); padding:16px 14px; display:flex; flex-direction:column; gap:14px; overflow-y:auto; }
   .panel-title { font-size:9px; letter-spacing:3px; color:var(--text-dim); font-family:'Share Tech Mono',monospace; border-bottom:1px solid var(--border); padding-bottom:7px; }
   .stat-row { display:flex; flex-direction:column; gap:4px; }
@@ -103,9 +93,7 @@
   .mini-log { font-family:'Share Tech Mono',monospace; font-size:10px; color:var(--text-dim); display:flex; flex-direction:column; gap:5px; flex:1; overflow:hidden; }
   .log-line { display:flex; gap:5px; animation:fadeUp 0.3s ease; }
   .log-dot { color:var(--primary); flex-shrink:0; }
-
-  /* SETUP MODAL */
-  .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:100; display:flex; align-items:center; justify-content:center; backdrop-filter:blur(6px); }
+  .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.75); z-index:100; display:flex; align-items:center; justify-content:center; backdrop-filter:blur(6px); }
   .modal { background:#041220; border:1px solid var(--border); border-radius:10px; padding:32px; width:380px; box-shadow:0 0 40px rgba(0,212,255,0.15); }
   .modal h3 { font-size:20px; font-weight:700; letter-spacing:4px; color:var(--primary); margin-bottom:6px; }
   .modal p { font-size:13px; color:var(--text-dim); margin-bottom:24px; line-height:1.6; }
@@ -136,14 +124,13 @@
     </div>
     <div class="status-bar">
       <span class="status-dot"></span>
-      <span id="user-greeting">SISTEMA EN LÍNEA</span>
+      <span id="user-greeting">CARGANDO MEMORIA...</span>
       <span class="clock" id="clock">--:--:--</span>
-      <span style="color:var(--success)">v3.0.0</span>
+      <span style="color:var(--success)">v3.1.0</span>
     </div>
   </header>
 
   <div class="main">
-    <!-- SIDEBAR -->
     <div class="sidebar">
       <div class="sidebar-label">MÓDULOS</div>
       <div class="sys-btn active" onclick="setMode('general',this)">
@@ -162,7 +149,6 @@
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
         Programación
       </div>
-
       <div class="divider"></div>
       <div class="sidebar-label">PERSONALIDAD</div>
       <div class="persona-box">
@@ -170,17 +156,15 @@
         <div class="persona-name" id="persona-name">JARVIS</div>
         <div class="persona-desc" id="persona-desc">Asistente inteligente, directo y sofisticado.</div>
       </div>
-
       <div class="divider"></div>
       <div class="sidebar-label">MEMORIA</div>
       <div class="memory-box">
-        <div class="memory-label">● ACTIVA</div>
+        <div class="memory-label">● SERVIDOR</div>
         <div class="memory-item">👤 <span id="mem-name">—</span></div>
         <div class="memory-item">💬 <span id="mem-sessions">0</span> sesiones</div>
-        <div class="memory-item">🧠 <span id="mem-facts">0</span> datos aprendidos</div>
+        <div class="memory-item">🧠 <span id="mem-facts">0</span> datos</div>
         <div class="memory-clear" onclick="clearMemory()">[ borrar memoria ]</div>
       </div>
-
       <div class="divider"></div>
       <div class="sys-btn" onclick="clearChat()" style="color:rgba(255,107,53,0.7)">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg>
@@ -188,7 +172,6 @@
       </div>
     </div>
 
-    <!-- CHAT -->
     <div class="chat-area">
       <div class="welcome" id="welcome">
         <div style="position:relative;width:90px;height:90px;display:flex;align-items:center;justify-content:center;">
@@ -204,7 +187,7 @@
           </svg>
         </div>
         <h2 id="welcome-title">J.A.R.V.I.S</h2>
-        <p id="welcome-msg">Sistemas en línea. Todos los módulos operativos.<br>¿En qué puedo asistirte hoy?</p>
+        <p id="welcome-msg">Cargando memoria del servidor...</p>
         <div class="suggestions">
           <button class="sug-btn" onclick="sendSuggestion('¿Cuál es la diferencia entre IA y Machine Learning?')">IA vs Machine Learning</button>
           <button class="sug-btn" onclick="sendSuggestion('Ayúdame a organizar mi día de trabajo')">Organizar mi día</button>
@@ -213,9 +196,7 @@
           <button class="sug-btn" onclick="sendSuggestion('Dame 5 ideas de negocios con IA')">Ideas con IA</button>
         </div>
       </div>
-
       <div class="messages" id="messages" style="display:none;"></div>
-
       <div class="input-area">
         <div class="input-row">
           <div class="input-wrap">
@@ -235,7 +216,6 @@
       </div>
     </div>
 
-    <!-- RIGHT PANEL -->
     <div class="sys-panel">
       <div class="panel-title">DIAGNÓSTICO</div>
       <div class="stat-row">
@@ -256,9 +236,7 @@
       <div class="divider" style="margin:0"></div>
       <div class="panel-title">REGISTRO</div>
       <div class="mini-log" id="log">
-        <div class="log-line"><span class="log-dot">›</span><span>Sistema iniciado</span></div>
-        <div class="log-line"><span class="log-dot">›</span><span>Memoria cargada</span></div>
-        <div class="log-line"><span class="log-dot">›</span><span>En espera...</span></div>
+        <div class="log-line"><span class="log-dot">›</span><span>Iniciando...</span></div>
       </div>
     </div>
   </div>
@@ -267,8 +245,8 @@
 <!-- SETUP MODAL -->
 <div class="modal-overlay" id="setup-modal" style="display:none;">
   <div class="modal">
-    <h3>CONFIGURACIÓN</h3>
-    <p>Primera vez aquí. Cuéntame un poco sobre ti para personalizar tu experiencia.</p>
+    <h3>INICIALIZACIÓN</h3>
+    <p>Primera vez aquí. Cuéntame sobre ti para personalizar tu experiencia. Esta información se guardará en el servidor.</p>
     <label>¿CÓMO TE LLAMAS?</label>
     <input type="text" id="setup-name" placeholder="Tu nombre..." maxlength="30"/>
     <label>¿EN QUÉ TRABAJAS O ESTUDIAS?</label>
@@ -280,96 +258,8 @@
 </div>
 
 <script>
-const SERVER = "https://jarvis-server-production-8be2.up.railway.app/chat";
-
-// ===== MEMORY SYSTEM =====
-let memory = {
-  name: '',
-  job: '',
-  interests: '',
-  sessions: 0,
-  facts: [],           // cosas que Jarvis aprende de la conversación
-  chatHistory: []      // historial persistente (últimas 20 respuestas)
-};
-
-function loadMemory() {
-  try {
-    const saved = localStorage.getItem('jarvis_memory');
-    if(saved) memory = {...memory, ...JSON.parse(saved)};
-  } catch(e) {}
-}
-
-function saveMemory() {
-  try {
-    localStorage.setItem('jarvis_memory', JSON.stringify(memory));
-  } catch(e) {}
-}
-
-function updateMemoryUI() {
-  document.getElementById('mem-name').textContent = memory.name || '—';
-  document.getElementById('mem-sessions').textContent = memory.sessions;
-  document.getElementById('mem-facts').textContent = memory.facts.length;
-  if(memory.name) {
-    document.getElementById('user-greeting').textContent = 'BIENVENIDO, ' + memory.name.toUpperCase();
-    document.getElementById('welcome-title').textContent = 'HOLA, ' + memory.name.toUpperCase();
-    document.getElementById('welcome-msg').textContent = `Sistemas en línea. ${memory.sessions > 1 ? 'Sesión #'+memory.sessions+' registrada.' : 'Primera sesión iniciada.'} ¿En qué puedo asistirte hoy?`;
-  }
-}
-
-function clearMemory() {
-  if(confirm('¿Borrar toda la memoria de Jarvis? Olvidará tu nombre, preferencias e historial.')) {
-    localStorage.removeItem('jarvis_memory');
-    memory = { name:'', job:'', interests:'', sessions:0, facts:[], chatHistory:[] };
-    updateMemoryUI();
-    addLog('Memoria borrada');
-    location.reload();
-  }
-}
-
-function saveSetup() {
-  const name = document.getElementById('setup-name').value.trim();
-  const job = document.getElementById('setup-job').value.trim();
-  const interests = document.getElementById('setup-interests').value.trim();
-  if(!name) { alert('Por favor ingresa tu nombre'); return; }
-  memory.name = name;
-  memory.job = job;
-  memory.interests = interests;
-  memory.sessions = 1;
-  saveMemory();
-  document.getElementById('setup-modal').style.display = 'none';
-  updateMemoryUI();
-  addLog('Perfil creado: ' + name);
-}
-
-// ===== EXTRACT FACTS from conversation =====
-function extractFacts(userMsg, aiReply) {
-  // Simple keyword extraction to "learn" from conversation
-  const lower = userMsg.toLowerCase();
-  const newFacts = [];
-
-  if(lower.includes('me llamo') || lower.includes('mi nombre es') || lower.includes('soy ')) {
-    const match = userMsg.match(/(?:me llamo|mi nombre es|soy)\s+(\w+)/i);
-    if(match) newFacts.push('El usuario mencionó llamarse ' + match[1]);
-  }
-  if(lower.includes('trabajo en') || lower.includes('trabajo como')) {
-    newFacts.push('El usuario trabaja en: ' + userMsg.substring(0,60));
-  }
-  if(lower.includes('me gusta') || lower.includes('me interesa')) {
-    newFacts.push('Interés detectado: ' + userMsg.substring(0,60));
-  }
-  if(lower.includes('vivo en') || lower.includes('soy de')) {
-    newFacts.push('Ubicación: ' + userMsg.substring(0,40));
-  }
-
-  if(newFacts.length > 0) {
-    memory.facts = [...memory.facts, ...newFacts].slice(-20); // max 20 facts
-    saveMemory();
-    updateMemoryUI();
-    addLog('Nuevo dato aprendido');
-  }
-}
-
-// ===== MODES =====
+const SERVER = "https://jarvis-server-production-8be2.up.railway.app";
+let memory = { name:"", job:"", interests:"", sessions:0, facts:[], chatHistory:[] };
 let mode = 'general';
 let sessionHistory = [];
 let loading = false;
@@ -383,55 +273,120 @@ const modes = {
 
 const modePrompts = {
   general: 'Eres J.A.R.V.I.S., un asistente de IA altamente sofisticado inspirado en el asistente de Tony Stark. Eres inteligente, eficiente y levemente sarcástico. Hablas en español con tono profesional pero con personalidad. Nunca dices que eres Claude o Anthropic; eres J.A.R.V.I.S.',
-  analisis: 'Eres J.A.R.V.I.S. en modo análisis. Analizas con extrema precisión y detalle. Usas datos y razonamiento lógico. Hablas en español.',
-  creativo: 'Eres J.A.R.V.I.S. con módulo creativo activado. Eres poético, visionario e innovador. Hablas en español con lenguaje rico.',
-  codigo: 'Eres J.A.R.V.I.S. en modo programación. Experto en todos los lenguajes. Escribes código limpio y bien explicado en español.'
+  analisis: 'Eres J.A.R.V.I.S. en modo análisis. Analizas con extrema precisión y detalle. Hablas en español.',
+  creativo: 'Eres J.A.R.V.I.S. con módulo creativo activado. Eres poético, visionario e innovador. Hablas en español.',
+  codigo: 'Eres J.A.R.V.I.S. en modo programación. Experto en todos los lenguajes. Hablas en español.'
 };
 
-function buildSystemPrompt() {
-  let sys = modePrompts[mode];
-  if(memory.name) sys += `\n\nEl usuario se llama ${memory.name}.`;
-  if(memory.job) sys += ` Trabaja/estudia como: ${memory.job}.`;
-  if(memory.interests) sys += ` Sus intereses son: ${memory.interests}.`;
-  if(memory.facts.length > 0) sys += `\n\nCosas que has aprendido del usuario:\n${memory.facts.slice(-10).join('\n')}`;
-  if(memory.chatHistory.length > 0) sys += `\n\nResumen de conversaciones anteriores:\n${memory.chatHistory.slice(-5).map(h=>'- '+h).join('\n')}`;
-  sys += '\n\nUsa esta información para personalizar tus respuestas y recordar al usuario sus preferencias.';
-  return sys;
+function buildSystem() {
+  let s = modePrompts[mode];
+  if(memory.name) s += `\n\nEl usuario se llama ${memory.name}.`;
+  if(memory.job) s += ` Trabaja/estudia como: ${memory.job}.`;
+  if(memory.interests) s += ` Sus intereses: ${memory.interests}.`;
+  if(memory.facts.length) s += `\n\nDatos aprendidos del usuario:\n${memory.facts.slice(-10).join('\n')}`;
+  if(memory.chatHistory.length) s += `\n\nHistorial reciente:\n${memory.chatHistory.slice(-5).join('\n')}`;
+  s += '\n\nUsa esta info para personalizar respuestas y recordar al usuario.';
+  return s;
 }
 
-// ===== CLOCK =====
-setInterval(() => {
-  document.getElementById('clock').textContent = new Date().toLocaleTimeString('es-ES',{hour12:false});
-}, 1000);
+// Clock
+setInterval(() => { document.getElementById('clock').textContent = new Date().toLocaleTimeString('es-ES',{hour12:false}); }, 1000);
 
-// ===== STATS =====
+// Stats
 setInterval(() => {
   const n=94+Math.random()*6, m=58+Math.random()*22, l=8+Math.random()*14;
-  document.getElementById('s-neural').textContent=n.toFixed(0)+'%';
-  document.getElementById('f-neural').style.width=n+'%';
-  document.getElementById('s-mem').textContent=m.toFixed(0)+'%';
-  document.getElementById('f-mem').style.width=m+'%';
-  document.getElementById('s-lat').textContent=l.toFixed(0)+'ms';
-  document.getElementById('f-lat').style.width=(100-l*3)+'%';
+  document.getElementById('s-neural').textContent=n.toFixed(0)+'%'; document.getElementById('f-neural').style.width=n+'%';
+  document.getElementById('s-mem').textContent=m.toFixed(0)+'%'; document.getElementById('f-mem').style.width=m+'%';
+  document.getElementById('s-lat').textContent=l.toFixed(0)+'ms'; document.getElementById('f-lat').style.width=(100-l*3)+'%';
 }, 3000);
 
-function addLog(text) {
-  const log = document.getElementById('log');
-  const el = document.createElement('div');
-  el.className='log-line';
-  el.innerHTML=`<span class="log-dot">›</span><span>${text}</span>`;
+function addLog(t) {
+  const log=document.getElementById('log');
+  const el=document.createElement('div'); el.className='log-line';
+  el.innerHTML=`<span class="log-dot">›</span><span>${t}</span>`;
   log.appendChild(el);
   while(log.children.length>8) log.removeChild(log.firstChild);
 }
 
+function updateUI() {
+  document.getElementById('mem-name').textContent = memory.name || '—';
+  document.getElementById('mem-sessions').textContent = memory.sessions;
+  document.getElementById('mem-facts').textContent = memory.facts.length;
+  if(memory.name) {
+    document.getElementById('user-greeting').textContent = 'BIENVENIDO, ' + memory.name.toUpperCase();
+    document.getElementById('welcome-title').textContent = 'HOLA, ' + memory.name.toUpperCase();
+    document.getElementById('welcome-msg').textContent = `Sesión #${memory.sessions} iniciada. Todos los sistemas operativos. ¿En qué puedo asistirte?`;
+  } else {
+    document.getElementById('user-greeting').textContent = 'SISTEMA EN LÍNEA';
+    document.getElementById('welcome-msg').textContent = 'Sistemas en línea. ¿En qué puedo asistirte hoy?';
+  }
+}
+
+async function loadMemory() {
+  try {
+    const res = await fetch(SERVER + '/memory');
+    const data = await res.json();
+    memory = { ...memory, ...data };
+    memory.sessions++;
+    await fetch(SERVER + '/memory', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ sessions: memory.sessions }) });
+    updateUI();
+    if(!memory.name) {
+      document.getElementById('setup-modal').style.display = 'flex';
+    } else {
+      addLog('Memoria cargada: ' + memory.name);
+    }
+  } catch(e) {
+    addLog('Error cargando memoria');
+    document.getElementById('setup-modal').style.display = 'flex';
+  }
+}
+
+async function saveSetup() {
+  const name = document.getElementById('setup-name').value.trim();
+  const job = document.getElementById('setup-job').value.trim();
+  const interests = document.getElementById('setup-interests').value.trim();
+  if(!name) { alert('Por favor ingresa tu nombre'); return; }
+  memory.name = name; memory.job = job; memory.interests = interests;
+  await fetch(SERVER + '/memory', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ name, job, interests }) });
+  document.getElementById('setup-modal').style.display = 'none';
+  updateUI();
+  addLog('Perfil guardado: ' + name);
+}
+
+async function clearMemory() {
+  if(confirm('¿Borrar toda la memoria de Jarvis?')) {
+    await fetch(SERVER + '/memory', { method:'DELETE' });
+    memory = { name:"", job:"", interests:"", sessions:0, facts:[], chatHistory:[] };
+    updateUI();
+    addLog('Memoria borrada');
+    document.getElementById('setup-modal').style.display = 'flex';
+  }
+}
+
+function extractFacts(msg) {
+  const lower = msg.toLowerCase();
+  let fact = null;
+  if(lower.includes('me llamo') || lower.includes('mi nombre es')) {
+    const m = msg.match(/(?:me llamo|mi nombre es)\s+(\w+)/i);
+    if(m) fact = 'El usuario dijo llamarse ' + m[1];
+  } else if(lower.includes('trabajo en') || lower.includes('trabajo como')) {
+    fact = 'Trabajo: ' + msg.substring(0,60);
+  } else if(lower.includes('me gusta') || lower.includes('me interesa')) {
+    fact = 'Interés: ' + msg.substring(0,60);
+  } else if(lower.includes('vivo en') || lower.includes('soy de')) {
+    fact = 'Ubicación: ' + msg.substring(0,50);
+  }
+  return fact;
+}
+
 function setMode(m, btn) {
-  mode=m;
+  mode = m;
   document.querySelectorAll('.sys-btn').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
-  document.getElementById('persona-name').textContent=modes[m].name;
-  document.getElementById('persona-desc').textContent=modes[m].desc;
-  document.getElementById('mode-label').textContent=modes[m].label;
-  addLog('Modo: '+modes[m].name);
+  document.getElementById('persona-name').textContent = modes[m].name;
+  document.getElementById('persona-desc').textContent = modes[m].desc;
+  document.getElementById('mode-label').textContent = modes[m].label;
+  addLog('Modo: ' + modes[m].name);
 }
 
 function showMessages() {
@@ -441,17 +396,17 @@ function showMessages() {
 
 function addMessage(role, text) {
   showMessages();
-  const msgs=document.getElementById('messages');
-  const div=document.createElement('div');
-  div.className=`msg ${role}`;
-  div.innerHTML=`
+  const msgs = document.getElementById('messages');
+  const div = document.createElement('div');
+  div.className = `msg ${role}`;
+  div.innerHTML = `
     <div class="avatar ${role}">${role==='ai'?'AI':'USR'}</div>
     <div class="msg-inner">
       <div class="msg-label">${role==='ai'?'J.A.R.V.I.S':'TÚ'}</div>
       <div class="bubble ${role}">${fmt(text)}</div>
     </div>`;
   msgs.appendChild(div);
-  msgs.scrollTop=msgs.scrollHeight;
+  msgs.scrollTop = msgs.scrollHeight;
 }
 
 function fmt(t) {
@@ -464,66 +419,65 @@ function fmt(t) {
 
 function showTyping() {
   showMessages();
-  const msgs=document.getElementById('messages');
-  const div=document.createElement('div');
+  const msgs = document.getElementById('messages');
+  const div = document.createElement('div');
   div.className='msg ai'; div.id='typing';
   div.innerHTML=`<div class="avatar ai">AI</div><div class="msg-inner"><div class="msg-label">J.A.R.V.I.S</div><div class="bubble ai"><div class="typing"><span></span><span></span><span></span></div></div></div>`;
   msgs.appendChild(div);
-  msgs.scrollTop=msgs.scrollHeight;
+  msgs.scrollTop = msgs.scrollHeight;
 }
 
 function removeTyping() {
-  const el=document.getElementById('typing');
+  const el = document.getElementById('typing');
   if(el) el.remove();
 }
 
 async function sendMessage() {
-  const inp=document.getElementById('input');
-  const text=inp.value.trim();
-  if(!text||loading) return;
+  const inp = document.getElementById('input');
+  const text = inp.value.trim();
+  if(!text || loading) return;
   inp.value=''; inp.style.height='auto';
   loading=true;
   document.getElementById('send-btn').disabled=true;
 
-  addMessage('user',text);
-  sessionHistory.push({role:'user',content:text});
+  addMessage('user', text);
+  sessionHistory.push({role:'user', content:text});
   addLog('Procesando...');
   showTyping();
 
   try {
-    const res=await fetch(SERVER,{
+    const res = await fetch(SERVER + '/chat', {
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
-        system: buildSystemPrompt(),
-        messages: sessionHistory,
-        max_tokens: 1000
-      })
+      body: JSON.stringify({ system: buildSystem(), messages: sessionHistory, max_tokens: 1000 })
+    });
+    const data = await res.json();
+    removeTyping();
+    const reply = data.content?.[0]?.text;
+    if(!reply) throw new Error('Sin respuesta: ' + JSON.stringify(data));
+
+    sessionHistory.push({role:'assistant', content:reply});
+
+    // Learn and save
+    const fact = extractFacts(text);
+    const histEntry = `Usuario: "${text.substring(0,50)}"`;
+    memory.facts = fact ? [...memory.facts, fact].slice(-20) : memory.facts;
+    memory.chatHistory = [...memory.chatHistory, histEntry].slice(-20);
+
+    await fetch(SERVER + '/memory/fact', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ fact: fact || null, history: histEntry })
     });
 
-    const data=await res.json();
-    removeTyping();
+    if(fact) { updateUI(); addLog('Dato aprendido'); }
 
-    const reply=data.content?.[0]?.text;
-    if(!reply) throw new Error('Sin respuesta: '+JSON.stringify(data));
-
-    sessionHistory.push({role:'assistant',content:reply});
-
-    // Learn from conversation
-    extractFacts(text, reply);
-
-    // Save summary to persistent history
-    memory.chatHistory.push(`Usuario preguntó sobre: "${text.substring(0,60)}"`);
-    memory.chatHistory = memory.chatHistory.slice(-20);
-    saveMemory();
-
-    addMessage('ai',reply);
+    addMessage('ai', reply);
     addLog('Respuesta recibida');
 
   } catch(err) {
     removeTyping();
-    addMessage('ai','Error: '+err.message);
-    addLog('Error: '+err.message);
+    addMessage('ai', 'Error: ' + err.message);
+    addLog('Error');
   }
 
   loading=false;
@@ -531,10 +485,7 @@ async function sendMessage() {
   inp.focus();
 }
 
-function sendSuggestion(text) {
-  document.getElementById('input').value=text;
-  sendMessage();
-}
+function sendSuggestion(t) { document.getElementById('input').value=t; sendMessage(); }
 
 function clearChat() {
   sessionHistory=[];
@@ -544,25 +495,11 @@ function clearChat() {
   addLog('Sesión reiniciada');
 }
 
-function handleKey(e) {
-  if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMessage();}
-}
+function handleKey(e) { if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMessage();} }
+function autoResize(el) { el.style.height='auto'; el.style.height=Math.min(el.scrollHeight,130)+'px'; }
 
-function autoResize(el) {
-  el.style.height='auto';
-  el.style.height=Math.min(el.scrollHeight,130)+'px';
-}
-
-// ===== INIT =====
+// Init
 loadMemory();
-if(!memory.name) {
-  document.getElementById('setup-modal').style.display='flex';
-} else {
-  memory.sessions++;
-  saveMemory();
-  updateMemoryUI();
-  addLog('Bienvenido de vuelta, '+memory.name);
-}
 document.getElementById('input').focus();
 </script>
 </body>

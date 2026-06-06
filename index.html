@@ -6,993 +6,545 @@
 <title>J.A.R.V.I.S — Personal AI</title>
 <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@300;400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
 <style>
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
   :root {
     --primary: #00d4ff;
-    --primary-dim: rgba(0, 212, 255, 0.15);
-    --primary-glow: rgba(0, 212, 255, 0.4);
+    --primary-dim: rgba(0,212,255,0.12);
+    --primary-glow: rgba(0,212,255,0.4);
     --accent: #ff6b35;
     --bg: #020b12;
-    --bg2: #041220;
-    --panel: rgba(0, 20, 40, 0.8);
-    --border: rgba(0, 212, 255, 0.2);
+    --panel: rgba(0,20,40,0.85);
+    --border: rgba(0,212,255,0.2);
     --text: #cce8f4;
-    --text-dim: rgba(204, 232, 244, 0.5);
+    --text-dim: rgba(204,232,244,0.5);
     --success: #00ff9d;
-    --warning: #ffcc00;
   }
 
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-
-  body {
+  html, body {
+    width: 100%; height: 100%;
     background: var(--bg);
     color: var(--text);
     font-family: 'Rajdhani', sans-serif;
-    min-height: 100vh;
     overflow: hidden;
-    display: flex;
-    flex-direction: column;
   }
 
-  /* Background grid */
   body::before {
     content: '';
-    position: fixed;
-    inset: 0;
+    position: fixed; inset: 0;
     background-image:
       linear-gradient(rgba(0,212,255,0.03) 1px, transparent 1px),
       linear-gradient(90deg, rgba(0,212,255,0.03) 1px, transparent 1px);
     background-size: 40px 40px;
-    pointer-events: none;
-    z-index: 0;
+    pointer-events: none; z-index: 0;
   }
 
-  /* Radial glow */
-  body::after {
-    content: '';
-    position: fixed;
-    top: -20%;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 80vw;
-    height: 60vh;
-    background: radial-gradient(ellipse, rgba(0,212,255,0.05) 0%, transparent 70%);
-    pointer-events: none;
-    z-index: 0;
+  #app {
+    position: relative; z-index: 1;
+    width: 100%; height: 100%;
+    display: flex; flex-direction: column;
   }
 
-  /* ===== HEADER ===== */
+  /* HEADER */
   header {
-    position: relative;
-    z-index: 10;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 16px 28px;
+    flex-shrink: 0;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 24px;
     border-bottom: 1px solid var(--border);
     background: var(--panel);
     backdrop-filter: blur(20px);
-    flex-shrink: 0;
   }
 
-  .logo {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  }
+  .logo { display: flex; align-items: center; gap: 12px; }
+  .logo-text { font-size: 20px; font-weight: 700; letter-spacing: 6px; color: var(--primary); text-shadow: 0 0 20px var(--primary-glow); }
+  .logo-sub { font-size: 9px; letter-spacing: 3px; color: var(--text-dim); font-family: 'Share Tech Mono', monospace; margin-top: 2px; }
 
-  .logo-icon {
-    width: 38px;
-    height: 38px;
-    position: relative;
-  }
-
-  .logo-icon svg { width: 100%; height: 100%; }
-
-  .logo-text {
-    font-size: 22px;
-    font-weight: 700;
-    letter-spacing: 6px;
-    color: var(--primary);
-    text-shadow: 0 0 20px var(--primary-glow);
-  }
-
-  .logo-sub {
-    font-size: 10px;
-    letter-spacing: 3px;
-    color: var(--text-dim);
-    font-family: 'Share Tech Mono', monospace;
-    margin-top: 2px;
-  }
-
-  .status-bar {
-    display: flex;
-    align-items: center;
-    gap: 20px;
-    font-family: 'Share Tech Mono', monospace;
-    font-size: 11px;
-    color: var(--text-dim);
-  }
-
-  .status-dot {
-    width: 6px; height: 6px;
-    border-radius: 50%;
-    background: var(--success);
-    box-shadow: 0 0 8px var(--success);
-    animation: pulse 2s infinite;
-  }
-
-  @keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.4; }
-  }
-
+  .status-bar { display: flex; align-items: center; gap: 16px; font-family: 'Share Tech Mono', monospace; font-size: 11px; color: var(--text-dim); }
+  .status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--success); box-shadow: 0 0 8px var(--success); animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
   .clock { color: var(--primary); }
 
-  /* ===== MAIN LAYOUT ===== */
+  /* MAIN */
   .main {
-    flex: 1;
-    display: flex;
-    overflow: hidden;
-    min-height: 0;
-}
+    flex: 1; min-height: 0;
+    display: flex; overflow: hidden;
+  }
 
-  /* ===== SIDEBAR ===== */
+  /* SIDEBAR */
   .sidebar {
-    width: 220px;
-    flex-shrink: 0;
+    width: 200px; flex-shrink: 0;
     border-right: 1px solid var(--border);
     background: var(--panel);
     backdrop-filter: blur(20px);
-    display: flex;
-    flex-direction: column;
-    padding: 20px 0;
+    display: flex; flex-direction: column;
+    padding: 16px 0; overflow-y: auto;
   }
 
-  .sidebar-section {
-    padding: 8px 16px;
-    margin-bottom: 4px;
-  }
-
-  .sidebar-label {
-    font-size: 9px;
-    letter-spacing: 3px;
-    color: var(--text-dim);
-    font-family: 'Share Tech Mono', monospace;
-    margin-bottom: 8px;
-    padding-left: 8px;
-  }
+  .sidebar-label { font-size: 9px; letter-spacing: 3px; color: var(--text-dim); font-family: 'Share Tech Mono', monospace; padding: 0 20px 8px; }
 
   .sys-btn {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 9px 12px;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 13px;
-    font-weight: 500;
-    letter-spacing: 1px;
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 16px; cursor: pointer;
+    font-size: 13px; font-weight: 500; letter-spacing: 1px;
+    color: var(--text-dim); border: 1px solid transparent;
+    margin: 1px 8px; border-radius: 4px;
     transition: all 0.2s;
-    color: var(--text-dim);
-    border: 1px solid transparent;
-    margin-bottom: 2px;
   }
+  .sys-btn:hover { background: var(--primary-dim); border-color: var(--border); color: var(--primary); }
+  .sys-btn.active { background: var(--primary-dim); border-color: rgba(0,212,255,0.3); color: var(--primary); }
+  .sys-indicator { width: 5px; height: 5px; border-radius: 50%; margin-left: auto; background: var(--success); box-shadow: 0 0 6px var(--success); }
 
-  .sys-btn:hover {
-    background: var(--primary-dim);
-    border-color: var(--border);
-    color: var(--primary);
-  }
+  .divider { height: 1px; background: var(--border); margin: 10px 16px; }
 
-  .sys-btn.active {
-    background: var(--primary-dim);
-    border-color: rgba(0,212,255,0.3);
-    color: var(--primary);
-  }
+  .persona-box { margin: 0 12px; padding: 10px; border: 1px solid var(--border); border-radius: 6px; background: rgba(0,212,255,0.04); }
+  .persona-label { font-size: 9px; letter-spacing: 2px; color: var(--text-dim); font-family: 'Share Tech Mono', monospace; margin-bottom: 4px; }
+  .persona-name { font-size: 14px; font-weight: 600; color: var(--primary); letter-spacing: 2px; }
+  .persona-desc { font-size: 11px; color: var(--text-dim); margin-top: 3px; line-height: 1.4; }
 
-  .sys-btn svg { opacity: 0.7; flex-shrink: 0; }
-  .sys-btn.active svg { opacity: 1; }
-
-  .sys-indicator {
-    width: 5px; height: 5px;
-    border-radius: 50%;
-    margin-left: auto;
-    background: var(--success);
-    box-shadow: 0 0 6px var(--success);
-  }
-
-  .divider {
-    height: 1px;
-    background: var(--border);
-    margin: 12px 16px;
-  }
-
-  .persona-box {
-    margin: 0 16px;
-    padding: 12px;
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    background: rgba(0,212,255,0.04);
-  }
-
-  .persona-label {
-    font-size: 9px;
-    letter-spacing: 2px;
-    color: var(--text-dim);
-    font-family: 'Share Tech Mono', monospace;
-    margin-bottom: 6px;
-  }
-
-  .persona-name {
-    font-size: 15px;
-    font-weight: 600;
-    color: var(--primary);
-    letter-spacing: 2px;
-  }
-
-  .persona-desc {
-    font-size: 11px;
-    color: var(--text-dim);
-    margin-top: 4px;
-    line-height: 1.5;
-  }
-
-  /* ===== CHAT AREA ===== */
-  .chat-area {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-  }
+  /* CHAT */
+  .chat-area { flex: 1; min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
 
   .messages {
-    flex: 1;
-    overflow-y: auto;
-    padding: 24px 28px;
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
+    flex: 1; min-height: 0;
+    overflow-y: auto; overflow-x: hidden;
+    padding: 20px 24px;
+    display: flex; flex-direction: column; gap: 14px;
     scroll-behavior: smooth;
   }
-
   .messages::-webkit-scrollbar { width: 4px; }
-  .messages::-webkit-scrollbar-track { background: transparent; }
   .messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 
-  /* ===== MESSAGES ===== */
-  .msg {
-    display: flex;
-    gap: 14px;
-    align-items: flex-start;
-    animation: fadeSlide 0.3s ease;
-    max-width: 820px;
+  /* WELCOME */
+  .welcome {
+    flex: 1; display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 16px; padding: 40px; text-align: center;
   }
+  .welcome h2 { font-size: 28px; font-weight: 700; letter-spacing: 8px; color: var(--primary); text-shadow: 0 0 30px var(--primary-glow); }
+  .welcome p { color: var(--text-dim); font-size: 13px; letter-spacing: 1px; max-width: 380px; line-height: 1.7; }
+  .ring { animation: spin 8s linear infinite; }
+  .ring2 { animation: spin 5s linear infinite reverse; }
+  @keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
 
-  @keyframes fadeSlide {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
+  .suggestions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 8px; }
+  .sug-btn {
+    padding: 7px 14px; border: 1px solid var(--border);
+    background: var(--primary-dim); color: var(--primary);
+    border-radius: 4px; cursor: pointer; font-size: 12px;
+    font-family: 'Rajdhani', sans-serif; letter-spacing: 1px;
+    font-weight: 500; transition: all 0.2s;
   }
+  .sug-btn:hover { background: rgba(0,212,255,0.22); transform: translateY(-1px); box-shadow: 0 4px 14px rgba(0,212,255,0.2); }
 
+  /* MESSAGES */
+  .msg { display: flex; gap: 12px; align-items: flex-start; animation: fadeUp 0.3s ease; max-width: 100%; }
   .msg.user { align-self: flex-end; flex-direction: row-reverse; }
+  @keyframes fadeUp { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
 
   .avatar {
-    width: 36px; height: 36px;
-    border-radius: 4px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    font-size: 11px;
-    letter-spacing: 1px;
-    font-weight: 700;
-    font-family: 'Share Tech Mono', monospace;
+    width: 34px; height: 34px; border-radius: 4px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 700; font-family: 'Share Tech Mono', monospace;
   }
+  .avatar.ai { background: var(--primary-dim); border: 1px solid rgba(0,212,255,0.3); color: var(--primary); }
+  .avatar.user { background: rgba(255,107,53,0.15); border: 1px solid rgba(255,107,53,0.3); color: var(--accent); }
 
-  .avatar.ai {
-    background: var(--primary-dim);
-    border: 1px solid rgba(0,212,255,0.3);
-    color: var(--primary);
-  }
+  .msg-inner { display: flex; flex-direction: column; max-width: 640px; }
+  .msg.user .msg-inner { align-items: flex-end; }
 
-  .avatar.user {
-    background: rgba(255,107,53,0.15);
-    border: 1px solid rgba(255,107,53,0.3);
-    color: var(--accent);
-  }
+  .msg-label { font-size: 9px; letter-spacing: 2px; color: var(--text-dim); font-family: 'Share Tech Mono', monospace; margin-bottom: 4px; }
 
   .bubble {
-    padding: 12px 16px;
-    border-radius: 6px;
-    font-size: 15px;
-    line-height: 1.6;
-    max-width: 680px;
-    position: relative;
+    padding: 11px 15px; border-radius: 6px;
+    font-size: 15px; line-height: 1.6; word-break: break-word;
   }
+  .bubble.ai { background: rgba(0,20,40,0.7); border: 1px solid var(--border); border-top-left-radius: 2px; }
+  .bubble.user { background: rgba(255,107,53,0.08); border: 1px solid rgba(255,107,53,0.2); border-top-right-radius: 2px; }
 
-  .bubble.ai {
-    background: rgba(0, 20, 40, 0.7);
-    border: 1px solid var(--border);
-    color: var(--text);
-    border-top-left-radius: 2px;
-  }
-
-  .bubble.user {
-    background: rgba(255,107,53,0.08);
-    border: 1px solid rgba(255,107,53,0.2);
-    color: var(--text);
-    border-top-right-radius: 2px;
-    text-align: right;
-  }
-
-  .msg-label {
-    font-size: 9px;
-    letter-spacing: 2px;
-    color: var(--text-dim);
-    font-family: 'Share Tech Mono', monospace;
-    margin-bottom: 4px;
-  }
-
-  .msg.user .msg-label { text-align: right; }
-
-  /* Typing indicator */
-  .typing {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    padding: 10px 14px;
-  }
-
-  .typing span {
-    width: 6px; height: 6px;
-    border-radius: 50%;
-    background: var(--primary);
-    animation: typing 1.2s infinite;
-  }
-
+  .typing { display: flex; align-items: center; gap: 5px; padding: 4px 0; }
+  .typing span { width: 6px; height: 6px; border-radius: 50%; background: var(--primary); animation: blink 1.2s infinite; }
   .typing span:nth-child(2) { animation-delay: 0.2s; }
   .typing span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes blink { 0%,80%,100%{opacity:0.2;transform:scale(0.8)} 40%{opacity:1;transform:scale(1)} }
 
-  @keyframes typing {
-    0%, 80%, 100% { opacity: 0.2; transform: scale(0.8); }
-    40% { opacity: 1; transform: scale(1); }
-  }
-
-  /* ===== WELCOME ===== */
-  .welcome {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    flex: 1;
-    gap: 20px;
-    padding: 40px;
-    text-align: center;
-  }
-
-  .welcome-ring {
-    width: 100px; height: 100px;
-    position: relative;
-    animation: spin 8s linear infinite;
-  }
-
-  @keyframes spin {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
-  }
-
-  .welcome-ring2 {
-    animation-direction: reverse;
-    animation-duration: 5s;
-    width: 70px; height: 70px;
-    position: absolute;
-    top: 15px; left: 15px;
-  }
-
-  .welcome h2 {
-    font-size: 32px;
-    font-weight: 700;
-    letter-spacing: 8px;
-    color: var(--primary);
-    text-shadow: 0 0 30px var(--primary-glow);
-  }
-
-  .welcome p {
-    color: var(--text-dim);
-    font-size: 14px;
-    letter-spacing: 2px;
-    max-width: 400px;
-    line-height: 1.7;
-  }
-
-  .suggestions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    justify-content: center;
-    margin-top: 8px;
-  }
-
-  .sug-btn {
-    padding: 8px 16px;
-    border: 1px solid var(--border);
-    background: var(--primary-dim);
-    color: var(--primary);
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 12px;
-    font-family: 'Rajdhani', sans-serif;
-    letter-spacing: 1px;
-    transition: all 0.2s;
-    font-weight: 500;
-  }
-
-  .sug-btn:hover {
-    background: rgba(0,212,255,0.25);
-    border-color: rgba(0,212,255,0.5);
-    transform: translateY(-1px);
-    box-shadow: 0 4px 16px rgba(0,212,255,0.2);
-  }
-
-  /* ===== INPUT AREA ===== */
+  /* INPUT */
   .input-area {
-    padding: 16px 28px 20px;
-    border-top: 1px solid var(--border);
-    background: var(--panel);
-    backdrop-filter: blur(20px);
     flex-shrink: 0;
+    padding: 14px 24px 18px;
+    border-top: 1px solid var(--border);
+    background: var(--panel); backdrop-filter: blur(20px);
   }
-
-  .input-row {
-    display: flex;
-    gap: 12px;
-    align-items: flex-end;
-  }
-
-  .input-wrap {
-    flex: 1;
-    position: relative;
-  }
-
+  .input-row { display: flex; gap: 10px; align-items: flex-end; }
+  .input-wrap { flex: 1; position: relative; }
   .input-wrap::before {
-    content: '//';
-    position: absolute;
-    left: 14px;
-    top: 50%;
-    transform: translateY(-50%);
-    color: var(--primary);
-    font-family: 'Share Tech Mono', monospace;
-    font-size: 12px;
-    opacity: 0.6;
-    pointer-events: none;
+    content: '//'; position: absolute; left: 12px; top: 13px;
+    color: var(--primary); font-family: 'Share Tech Mono', monospace;
+    font-size: 11px; opacity: 0.5; pointer-events: none;
   }
-
   textarea {
-    width: 100%;
-    background: rgba(0, 20, 40, 0.6);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    color: var(--text);
-    font-family: 'Rajdhani', sans-serif;
-    font-size: 15px;
-    padding: 13px 52px 13px 40px;
-    resize: none;
-    outline: none;
-    min-height: 50px;
-    max-height: 140px;
+    width: 100%; background: rgba(0,20,40,0.6);
+    border: 1px solid var(--border); border-radius: 6px;
+    color: var(--text); font-family: 'Rajdhani', sans-serif;
+    font-size: 15px; padding: 12px 14px 12px 36px;
+    resize: none; outline: none;
+    min-height: 48px; max-height: 130px;
     transition: border-color 0.2s, box-shadow 0.2s;
-    line-height: 1.5;
-    overflow-y: auto;
+    line-height: 1.5; overflow-y: auto;
   }
-
   textarea::placeholder { color: var(--text-dim); }
-
-  textarea:focus {
-    border-color: rgba(0,212,255,0.4);
-    box-shadow: 0 0 0 2px rgba(0,212,255,0.08), 0 0 20px rgba(0,212,255,0.1);
-  }
+  textarea:focus { border-color: rgba(0,212,255,0.4); box-shadow: 0 0 0 2px rgba(0,212,255,0.08); }
 
   .send-btn {
-    width: 50px; height: 50px;
-    background: var(--primary-dim);
-    border: 1px solid rgba(0,212,255,0.3);
-    border-radius: 6px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    width: 48px; height: 48px; flex-shrink: 0;
+    background: var(--primary-dim); border: 1px solid rgba(0,212,255,0.3);
+    border-radius: 6px; cursor: pointer; color: var(--primary);
+    display: flex; align-items: center; justify-content: center;
     transition: all 0.2s;
-    flex-shrink: 0;
-    color: var(--primary);
   }
-
-  .send-btn:hover:not(:disabled) {
-    background: rgba(0,212,255,0.25);
-    box-shadow: 0 0 20px rgba(0,212,255,0.3);
-    transform: translateY(-1px);
-  }
-
+  .send-btn:hover:not(:disabled) { background: rgba(0,212,255,0.22); box-shadow: 0 0 18px rgba(0,212,255,0.25); }
   .send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
-  .input-footer {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-top: 8px;
-    font-family: 'Share Tech Mono', monospace;
-    font-size: 10px;
-    color: var(--text-dim);
-  }
+  .input-footer { display: flex; justify-content: space-between; margin-top: 7px; font-family: 'Share Tech Mono', monospace; font-size: 10px; color: var(--text-dim); }
 
-  /* ===== SYSTEM PANEL ===== */
+  /* RIGHT PANEL */
   .sys-panel {
-    width: 200px;
-    flex-shrink: 0;
+    width: 180px; flex-shrink: 0;
     border-left: 1px solid var(--border);
-    background: var(--panel);
-    backdrop-filter: blur(20px);
-    padding: 20px 16px;
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
+    background: var(--panel); backdrop-filter: blur(20px);
+    padding: 16px 14px; display: flex; flex-direction: column; gap: 14px;
+    overflow-y: auto;
   }
+  .panel-title { font-size: 9px; letter-spacing: 3px; color: var(--text-dim); font-family: 'Share Tech Mono', monospace; border-bottom: 1px solid var(--border); padding-bottom: 7px; }
+  .stat-row { display: flex; flex-direction: column; gap: 4px; }
+  .stat-label { font-size: 10px; color: var(--text-dim); font-family: 'Share Tech Mono', monospace; }
+  .stat-value { font-size: 15px; font-weight: 600; color: var(--primary); font-family: 'Share Tech Mono', monospace; }
+  .stat-bar { height: 3px; background: rgba(255,255,255,0.05); border-radius: 2px; overflow: hidden; }
+  .stat-fill { height: 100%; border-radius: 2px; background: linear-gradient(90deg, var(--primary), rgba(0,212,255,0.4)); transition: width 1s ease; }
 
-  .panel-title {
-    font-size: 9px;
-    letter-spacing: 3px;
-    color: var(--text-dim);
-    font-family: 'Share Tech Mono', monospace;
-    border-bottom: 1px solid var(--border);
-    padding-bottom: 8px;
-  }
-
-  .stat-row {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-  }
-
-  .stat-label {
-    font-size: 10px;
-    color: var(--text-dim);
-    font-family: 'Share Tech Mono', monospace;
-    letter-spacing: 1px;
-  }
-
-  .stat-bar {
-    height: 3px;
-    background: rgba(255,255,255,0.05);
-    border-radius: 2px;
-    overflow: hidden;
-  }
-
-  .stat-fill {
-    height: 100%;
-    border-radius: 2px;
-    background: linear-gradient(90deg, var(--primary), rgba(0,212,255,0.5));
-    transition: width 1s ease;
-  }
-
-  .stat-value {
-    font-size: 16px;
-    font-weight: 600;
-    color: var(--primary);
-    font-family: 'Share Tech Mono', monospace;
-  }
-
-  .mini-log {
-    font-family: 'Share Tech Mono', monospace;
-    font-size: 10px;
-    color: var(--text-dim);
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
-    flex: 1;
-    overflow: hidden;
-  }
-
-  .log-line {
-    display: flex;
-    gap: 6px;
-    animation: fadeSlide 0.3s ease;
-  }
-
-  .log-dot {
-    color: var(--primary);
-    flex-shrink: 0;
-  }
-
-  /* ===== SCROLLABLE MESSAGES ===== */
-  #messages-container:empty + .welcome { display: flex; }
+  .mini-log { font-family: 'Share Tech Mono', monospace; font-size: 10px; color: var(--text-dim); display: flex; flex-direction: column; gap: 5px; flex: 1; overflow: hidden; }
+  .log-line { display: flex; gap: 5px; animation: fadeUp 0.3s ease; }
+  .log-dot { color: var(--primary); flex-shrink: 0; }
 </style>
 </head>
 <body>
+<div id="app">
 
-<!-- HEADER -->
-<header>
-  <div class="logo">
-    <div class="logo-icon">
-      <svg viewBox="0 0 40 40" fill="none">
+  <header>
+    <div class="logo">
+      <svg width="36" height="36" viewBox="0 0 40 40" fill="none">
         <circle cx="20" cy="20" r="18" stroke="#00d4ff" stroke-width="1" opacity="0.3"/>
-        <circle cx="20" cy="20" r="12" stroke="#00d4ff" stroke-width="1" opacity="0.6"/>
-        <circle cx="20" cy="20" r="5" fill="#00d4ff" opacity="0.8"/>
-        <line x1="20" y1="2" x2="20" y2="8" stroke="#00d4ff" stroke-width="1.5"/>
-        <line x1="20" y1="32" x2="20" y2="38" stroke="#00d4ff" stroke-width="1.5"/>
-        <line x1="2" y1="20" x2="8" y2="20" stroke="#00d4ff" stroke-width="1.5"/>
-        <line x1="32" y1="20" x2="38" y2="20" stroke="#00d4ff" stroke-width="1.5"/>
+        <circle cx="20" cy="20" r="11" stroke="#00d4ff" stroke-width="1" opacity="0.6"/>
+        <circle cx="20" cy="20" r="4" fill="#00d4ff" opacity="0.9"/>
+        <line x1="20" y1="2" x2="20" y2="9" stroke="#00d4ff" stroke-width="1.5"/>
+        <line x1="20" y1="31" x2="20" y2="38" stroke="#00d4ff" stroke-width="1.5"/>
+        <line x1="2" y1="20" x2="9" y2="20" stroke="#00d4ff" stroke-width="1.5"/>
+        <line x1="31" y1="20" x2="38" y2="20" stroke="#00d4ff" stroke-width="1.5"/>
       </svg>
+      <div>
+        <div class="logo-text">J.A.R.V.I.S</div>
+        <div class="logo-sub">JUST A RATHER VERY INTELLIGENT SYSTEM</div>
+      </div>
     </div>
-    <div>
-      <div class="logo-text">J.A.R.V.I.S</div>
-      <div class="logo-sub">JUST A RATHER VERY INTELLIGENT SYSTEM</div>
+    <div class="status-bar">
+      <span class="status-dot"></span>
+      <span>SISTEMA EN LÍNEA</span>
+      <span class="clock" id="clock">--:--:--</span>
+      <span style="color:var(--success)">v2.4.1</span>
     </div>
-  </div>
-  <div class="status-bar">
-    <span class="status-dot"></span>
-    <span>SISTEMA EN LÍNEA</span>
-    <span class="clock" id="clock">--:--:--</span>
-    <span style="color: var(--success)">v2.4.1</span>
-  </div>
-</header>
+  </header>
 
-<!-- MAIN -->
-<div class="main">
+  <div class="main">
 
-  <!-- SIDEBAR -->
-  <div class="sidebar">
-    <div class="sidebar-section">
+    <!-- SIDEBAR -->
+    <div class="sidebar">
       <div class="sidebar-label">MÓDULOS</div>
-      <div class="sys-btn active" onclick="setMode('general')">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
+      <div class="sys-btn active" id="btn-general" onclick="setMode('general',this)">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
         Asistente General
         <div class="sys-indicator"></div>
       </div>
-      <div class="sys-btn" onclick="setMode('analisis')">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+      <div class="sys-btn" onclick="setMode('analisis',this)">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
         Análisis
       </div>
-      <div class="sys-btn" onclick="setMode('creativo')">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+      <div class="sys-btn" onclick="setMode('creativo',this)">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
         Modo Creativo
       </div>
-      <div class="sys-btn" onclick="setMode('codigo')">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+      <div class="sys-btn" onclick="setMode('codigo',this)">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
         Programación
       </div>
-    </div>
 
-    <div class="divider"></div>
-
-    <div class="sidebar-section">
+      <div class="divider"></div>
       <div class="sidebar-label">PERSONALIDAD</div>
       <div class="persona-box">
         <div class="persona-label">ACTIVO</div>
         <div class="persona-name" id="persona-name">JARVIS</div>
         <div class="persona-desc" id="persona-desc">Asistente inteligente, directo y sofisticado.</div>
       </div>
-    </div>
 
-    <div class="divider"></div>
-
-    <div class="sidebar-section">
-      <div class="sys-btn" onclick="clearChat()" style="color: rgba(255,107,53,0.7)">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+      <div class="divider"></div>
+      <div class="sys-btn" onclick="clearChat()" style="color:rgba(255,107,53,0.7)">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg>
         Nueva Sesión
       </div>
     </div>
-  </div>
 
-  <!-- CHAT -->
-  <div class="chat-area">
-    <div class="messages" id="messages-container">
-      <!-- Messages go here -->
-    </div>
+    <!-- CHAT AREA -->
+    <div class="chat-area">
 
-    <!-- Welcome (shown when empty) -->
-    <div class="welcome" id="welcome-screen">
-      <div style="position:relative; width:100px; height:100px;">
-        <svg class="welcome-ring" viewBox="0 0 100 100" fill="none">
-          <circle cx="50" cy="50" r="46" stroke="#00d4ff" stroke-width="1" stroke-dasharray="8 4" opacity="0.4"/>
-        </svg>
-        <svg class="welcome-ring2" viewBox="0 0 70 70" fill="none" style="position:absolute;top:15px;left:15px;">
-          <circle cx="35" cy="35" r="30" stroke="#00d4ff" stroke-width="1" stroke-dasharray="4 8" opacity="0.6"/>
-        </svg>
-        <svg style="position:absolute;top:33px;left:33px;width:34px;height:34px;" viewBox="0 0 34 34" fill="none">
-          <circle cx="17" cy="17" r="10" fill="rgba(0,212,255,0.15)" stroke="#00d4ff" stroke-width="1.5"/>
-          <circle cx="17" cy="17" r="4" fill="#00d4ff"/>
-        </svg>
-      </div>
-      <h2>J.A.R.V.I.S</h2>
-      <p>Sistemas en línea. Todos los módulos operativos.<br>¿En qué puedo asistirte hoy?</p>
-      <div class="suggestions">
-        <button class="sug-btn" onclick="sendSuggestion('¿Cuál es la diferencia entre IA y Machine Learning?')">IA vs Machine Learning</button>
-        <button class="sug-btn" onclick="sendSuggestion('Ayúdame a organizar mi día de trabajo')">Organizar mi día</button>
-        <button class="sug-btn" onclick="sendSuggestion('Explícame cómo funciona la fusión nuclear')">Fusión nuclear</button>
-        <button class="sug-btn" onclick="sendSuggestion('Escribe un poema sobre el cosmos')">Poema del cosmos</button>
-        <button class="sug-btn" onclick="sendSuggestion('Dame 5 ideas de negocios con IA')">Ideas con IA</button>
-      </div>
-    </div>
-
-    <!-- Input -->
-    <div class="input-area">
-      <div class="input-row">
-        <div class="input-wrap">
-          <textarea
-            id="user-input"
-            placeholder="Introduce un comando o pregunta..."
-            rows="1"
-            onkeydown="handleKey(event)"
-            oninput="autoResize(this)"
-          ></textarea>
-        </div>
-        <button class="send-btn" id="send-btn" onclick="sendMessage()">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <line x1="22" y1="2" x2="11" y2="13"/>
-            <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+      <!-- Welcome screen -->
+      <div class="welcome" id="welcome">
+        <div style="position:relative;width:90px;height:90px;display:flex;align-items:center;justify-content:center;">
+          <svg class="ring" style="position:absolute;width:90px;height:90px;" viewBox="0 0 90 90" fill="none">
+            <circle cx="45" cy="45" r="42" stroke="#00d4ff" stroke-width="1" stroke-dasharray="8 4" opacity="0.4"/>
           </svg>
-        </button>
+          <svg class="ring2" style="position:absolute;width:60px;height:60px;" viewBox="0 0 60 60" fill="none">
+            <circle cx="30" cy="30" r="27" stroke="#00d4ff" stroke-width="1" stroke-dasharray="4 8" opacity="0.6"/>
+          </svg>
+          <svg style="width:28px;height:28px;" viewBox="0 0 28 28" fill="none">
+            <circle cx="14" cy="14" r="9" fill="rgba(0,212,255,0.15)" stroke="#00d4ff" stroke-width="1.5"/>
+            <circle cx="14" cy="14" r="3.5" fill="#00d4ff"/>
+          </svg>
+        </div>
+        <h2>J.A.R.V.I.S</h2>
+        <p>Sistemas en línea. Todos los módulos operativos.<br>¿En qué puedo asistirte hoy?</p>
+        <div class="suggestions">
+          <button class="sug-btn" onclick="sendSuggestion('¿Cuál es la diferencia entre IA y Machine Learning?')">IA vs Machine Learning</button>
+          <button class="sug-btn" onclick="sendSuggestion('Ayúdame a organizar mi día de trabajo')">Organizar mi día</button>
+          <button class="sug-btn" onclick="sendSuggestion('Explícame cómo funciona la fusión nuclear')">Fusión nuclear</button>
+          <button class="sug-btn" onclick="sendSuggestion('Escribe un poema sobre el cosmos')">Poema del cosmos</button>
+          <button class="sug-btn" onclick="sendSuggestion('Dame 5 ideas de negocios con IA')">Ideas con IA</button>
+        </div>
       </div>
-      <div class="input-footer">
-        <span id="mode-label">MODO: ASISTENTE GENERAL</span>
-        <span>ENTER para enviar · SHIFT+ENTER nueva línea</span>
+
+      <!-- Messages -->
+      <div class="messages" id="messages" style="display:none;"></div>
+
+      <!-- Input -->
+      <div class="input-area">
+        <div class="input-row">
+          <div class="input-wrap">
+            <textarea id="input" placeholder="Introduce un comando o pregunta..." rows="1"
+              onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+          </div>
+          <button class="send-btn" id="send-btn" onclick="sendMessage()">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+            </svg>
+          </button>
+        </div>
+        <div class="input-footer">
+          <span id="mode-label">MODO: ASISTENTE GENERAL</span>
+          <span>ENTER enviar · SHIFT+ENTER nueva línea</span>
+        </div>
       </div>
     </div>
+
+    <!-- RIGHT PANEL -->
+    <div class="sys-panel">
+      <div class="panel-title">DIAGNÓSTICO</div>
+      <div class="stat-row">
+        <div class="stat-label">NEURAL CORE</div>
+        <div class="stat-value" id="s-neural">98%</div>
+        <div class="stat-bar"><div class="stat-fill" id="f-neural" style="width:98%"></div></div>
+      </div>
+      <div class="stat-row">
+        <div class="stat-label">MEMORIA</div>
+        <div class="stat-value" id="s-mem">64%</div>
+        <div class="stat-bar"><div class="stat-fill" id="f-mem" style="width:64%;background:linear-gradient(90deg,#00ff9d,rgba(0,255,157,0.4))"></div></div>
+      </div>
+      <div class="stat-row">
+        <div class="stat-label">LATENCIA</div>
+        <div class="stat-value" id="s-lat">12ms</div>
+        <div class="stat-bar"><div class="stat-fill" id="f-lat" style="width:85%;background:linear-gradient(90deg,#ffcc00,rgba(255,204,0,0.4))"></div></div>
+      </div>
+      <div class="divider" style="margin:0"></div>
+      <div class="panel-title">REGISTRO</div>
+      <div class="mini-log" id="log">
+        <div class="log-line"><span class="log-dot">›</span><span>Sistema iniciado</span></div>
+        <div class="log-line"><span class="log-dot">›</span><span>IA conectada</span></div>
+        <div class="log-line"><span class="log-dot">›</span><span>En espera...</span></div>
+      </div>
+    </div>
+
   </div>
-
-  <!-- SYSTEM PANEL -->
-  <div class="sys-panel">
-    <div class="panel-title">DIAGNÓSTICO</div>
-
-    <div class="stat-row">
-      <div class="stat-label">NEURAL CORE</div>
-      <div class="stat-value" id="stat-neural">98%</div>
-      <div class="stat-bar"><div class="stat-fill" id="fill-neural" style="width:98%"></div></div>
-    </div>
-
-    <div class="stat-row">
-      <div class="stat-label">MEMORIA</div>
-      <div class="stat-value" id="stat-mem">64%</div>
-      <div class="stat-bar"><div class="stat-fill" id="fill-mem" style="width:64%; background: linear-gradient(90deg, #00ff9d, rgba(0,255,157,0.5))"></div></div>
-    </div>
-
-    <div class="stat-row">
-      <div class="stat-label">LATENCIA</div>
-      <div class="stat-value" id="stat-lat">12ms</div>
-      <div class="stat-bar"><div class="stat-fill" id="fill-lat" style="width:88%; background: linear-gradient(90deg, #ffcc00, rgba(255,204,0,0.5))"></div></div>
-    </div>
-
-    <div class="divider" style="margin: 0;"></div>
-
-    <div class="panel-title" style="margin-top:4px;">REGISTRO</div>
-    <div class="mini-log" id="mini-log">
-      <div class="log-line"><span class="log-dot">›</span><span>Sistema iniciado</span></div>
-      <div class="log-line"><span class="log-dot">›</span><span>IA conectada</span></div>
-      <div class="log-line"><span class="log-dot">›</span><span>En espera...</span></div>
-    </div>
-  </div>
-
 </div>
 
 <script>
-  // ======= STATE =======
-  let mode = 'general';
-  let messageHistory = [];
-  let isLoading = false;
-  const apiKey = ""; // Handled by proxy
+const SERVER = "https://jarvis-server-production-8be2.up.railway.app/chat";
 
-  // ======= MODES =======
-  const modes = {
-    general: {
-      name: 'JARVIS',
-      desc: 'Asistente inteligente, directo y sofisticado.',
-      label: 'MODO: ASISTENTE GENERAL',
-      system: `Eres J.A.R.V.I.S., un asistente de inteligencia artificial altamente sofisticado, inspirado en el asistente de Tony Stark. 
-Eres extraordinariamente inteligente, eficiente, y levemente sarcástico. Hablas en español con un tono profesional pero con personalidad.
-Eres directo, preciso y siempre aportas información valiosa. Ocasionalmente haces referencias sutiles a la tecnología y la ciencia.
-Nunca dices que eres Claude o un modelo de Anthropic; eres J.A.R.V.I.S. Mantén respuestas concisas pero completas.`
-    },
-    analisis: {
-      name: 'ANÁLISIS',
-      desc: 'Modo analítico de alta precisión.',
-      label: 'MODO: ANÁLISIS PROFUNDO',
-      system: `Eres J.A.R.V.I.S. en modo de análisis profundo. Analizas problemas con extrema precisión, estructura y detalle.
-Usas datos, estadísticas y razonamiento lógico. Presentas pros y contras. Eres objetivo y meticuloso. Hablas en español.
-Estructura tus respuestas con claridad: hipótesis, análisis, conclusiones.`
-    },
-    creativo: {
-      name: 'CREATIVO',
-      desc: 'Módulo de creatividad e imaginación activo.',
-      label: 'MODO: CREATIVIDAD AVANZADA',
-      system: `Eres J.A.R.V.I.S. con el módulo creativo activado. Tu imaginación no tiene límites.
-Eres poético, visionario e innovador. Puedes escribir historias, poemas, conceptos y mundos enteros.
-Hablas en español con un lenguaje rico y evocador. Sorprendes con perspectivas únicas e inesperadas.`
-    },
-    codigo: {
-      name: 'DEV MODE',
-      desc: 'Módulo de programación y código activo.',
-      label: 'MODO: INGENIERÍA DE SOFTWARE',
-      system: `Eres J.A.R.V.I.S. en modo de programación. Eres un experto en todos los lenguajes de programación.
-Escribes código limpio, eficiente y bien comentado. Explicas conceptos técnicos claramente en español.
-Siempre proporcionas ejemplos funcionales y señalas posibles errores o mejoras.`
-    }
-  };
+let mode = 'general';
+let history = [];
+let loading = false;
 
-  function setMode(m) {
-    mode = m;
-    document.querySelectorAll('.sys-btn').forEach(b => b.classList.remove('active'));
-    event.currentTarget.classList.add('active');
-    const cfg = modes[m];
-    document.getElementById('persona-name').textContent = cfg.name;
-    document.getElementById('persona-desc').textContent = cfg.desc;
-    document.getElementById('mode-label').textContent = cfg.label;
-    addLog('Modo cambiado: ' + cfg.name);
+const modes = {
+  general: {
+    name:'JARVIS', desc:'Asistente inteligente, directo y sofisticado.', label:'MODO: ASISTENTE GENERAL',
+    system:'Eres J.A.R.V.I.S., un asistente de IA altamente sofisticado inspirado en el asistente de Tony Stark. Eres inteligente, eficiente y levemente sarcástico. Hablas en español con tono profesional pero con personalidad. Nunca dices que eres Claude o Anthropic; eres J.A.R.V.I.S.'
+  },
+  analisis: {
+    name:'ANÁLISIS', desc:'Modo analítico de alta precisión.', label:'MODO: ANÁLISIS PROFUNDO',
+    system:'Eres J.A.R.V.I.S. en modo análisis. Analizas con extrema precisión, estructura y detalle. Usas datos y razonamiento lógico. Hablas en español.'
+  },
+  creativo: {
+    name:'CREATIVO', desc:'Módulo de creatividad activo.', label:'MODO: CREATIVIDAD',
+    system:'Eres J.A.R.V.I.S. con módulo creativo activado. Eres poético, visionario e innovador. Hablas en español con lenguaje rico.'
+  },
+  codigo: {
+    name:'DEV MODE', desc:'Módulo de programación activo.', label:'MODO: PROGRAMACIÓN',
+    system:'Eres J.A.R.V.I.S. en modo programación. Experto en todos los lenguajes. Escribes código limpio y bien explicado en español.'
+  }
+};
+
+// Clock
+setInterval(() => {
+  document.getElementById('clock').textContent = new Date().toLocaleTimeString('es-ES',{hour12:false});
+}, 1000);
+
+// Stats
+setInterval(() => {
+  const n = 94 + Math.random()*6, m = 58 + Math.random()*22, l = 8 + Math.random()*14;
+  document.getElementById('s-neural').textContent = n.toFixed(0)+'%';
+  document.getElementById('f-neural').style.width = n+'%';
+  document.getElementById('s-mem').textContent = m.toFixed(0)+'%';
+  document.getElementById('f-mem').style.width = m+'%';
+  document.getElementById('s-lat').textContent = l.toFixed(0)+'ms';
+  document.getElementById('f-lat').style.width = (100-l*3)+'%';
+}, 3000);
+
+function addLog(text) {
+  const log = document.getElementById('log');
+  const el = document.createElement('div');
+  el.className = 'log-line';
+  el.innerHTML = `<span class="log-dot">›</span><span>${text}</span>`;
+  log.appendChild(el);
+  while(log.children.length > 8) log.removeChild(log.firstChild);
+}
+
+function setMode(m, btn) {
+  mode = m;
+  document.querySelectorAll('.sys-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  const cfg = modes[m];
+  document.getElementById('persona-name').textContent = cfg.name;
+  document.getElementById('persona-desc').textContent = cfg.desc;
+  document.getElementById('mode-label').textContent = cfg.label;
+  addLog('Modo: ' + cfg.name);
+}
+
+function showMessages() {
+  document.getElementById('welcome').style.display = 'none';
+  document.getElementById('messages').style.display = 'flex';
+}
+
+function addMessage(role, text) {
+  showMessages();
+  const msgs = document.getElementById('messages');
+  const div = document.createElement('div');
+  div.className = `msg ${role}`;
+  div.innerHTML = `
+    <div class="avatar ${role}">${role==='ai'?'AI':'USR'}</div>
+    <div class="msg-inner">
+      <div class="msg-label">${role==='ai'?'J.A.R.V.I.S':'TÚ'}</div>
+      <div class="bubble ${role}">${fmt(text)}</div>
+    </div>`;
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+function fmt(t) {
+  return t
+    .replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>')
+    .replace(/\*(.*?)\*/g,'<em>$1</em>')
+    .replace(/`(.*?)`/g,'<code style="font-family:Share Tech Mono,monospace;background:rgba(0,212,255,0.1);padding:1px 5px;border-radius:3px;font-size:13px">$1</code>')
+    .replace(/\n/g,'<br>');
+}
+
+function showTyping() {
+  showMessages();
+  const msgs = document.getElementById('messages');
+  const div = document.createElement('div');
+  div.className = 'msg ai'; div.id = 'typing';
+  div.innerHTML = `<div class="avatar ai">AI</div><div class="msg-inner"><div class="msg-label">J.A.R.V.I.S</div><div class="bubble ai"><div class="typing"><span></span><span></span><span></span></div></div></div>`;
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+function removeTyping() {
+  const el = document.getElementById('typing');
+  if(el) el.remove();
+}
+
+async function sendMessage() {
+  const inp = document.getElementById('input');
+  const text = inp.value.trim();
+  if(!text || loading) return;
+  inp.value = ''; inp.style.height = 'auto';
+  loading = true;
+  document.getElementById('send-btn').disabled = true;
+
+  addMessage('user', text);
+  history.push({role:'user', content:text});
+  addLog('Procesando...');
+  showTyping();
+
+  try {
+    const res = await fetch(SERVER, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        system: modes[mode].system,
+        messages: history,
+        max_tokens: 1000
+      })
+    });
+
+    const data = await res.json();
+    removeTyping();
+
+    const reply = data.content?.[0]?.text;
+    if(!reply) throw new Error('Sin respuesta: ' + JSON.stringify(data));
+
+    history.push({role:'assistant', content:reply});
+    addMessage('ai', reply);
+    addLog('Respuesta recibida');
+
+  } catch(err) {
+    removeTyping();
+    addMessage('ai', 'Error: ' + err.message);
+    addLog('Error: ' + err.message);
   }
 
-  // ======= CLOCK =======
-  function updateClock() {
-    const now = new Date();
-    document.getElementById('clock').textContent =
-      now.toLocaleTimeString('es-ES', { hour12: false });
-  }
-  updateClock();
-  setInterval(updateClock, 1000);
+  loading = false;
+  document.getElementById('send-btn').disabled = false;
+  inp.focus();
+}
 
-  // ======= STATS ANIMATION =======
-  function animateStats() {
-    const neural = 94 + Math.random() * 6;
-    const mem = 60 + Math.random() * 20;
-    const lat = 8 + Math.random() * 15;
-    document.getElementById('stat-neural').textContent = neural.toFixed(0) + '%';
-    document.getElementById('fill-neural').style.width = neural + '%';
-    document.getElementById('stat-mem').textContent = mem.toFixed(0) + '%';
-    document.getElementById('fill-mem').style.width = mem + '%';
-    document.getElementById('stat-lat').textContent = lat.toFixed(0) + 'ms';
-    document.getElementById('fill-lat').style.width = (100 - lat * 3) + '%';
-  }
-  setInterval(animateStats, 3000);
+function sendSuggestion(text) {
+  document.getElementById('input').value = text;
+  sendMessage();
+}
 
-  // ======= LOG =======
-  function addLog(text) {
-    const log = document.getElementById('mini-log');
-    const line = document.createElement('div');
-    line.className = 'log-line';
-    line.innerHTML = `<span class="log-dot">›</span><span>${text}</span>`;
-    log.appendChild(line);
-    while (log.children.length > 8) log.removeChild(log.firstChild);
-    log.scrollTop = log.scrollHeight;
-  }
+function clearChat() {
+  history = [];
+  document.getElementById('messages').innerHTML = '';
+  document.getElementById('messages').style.display = 'none';
+  document.getElementById('welcome').style.display = 'flex';
+  addLog('Sesión reiniciada');
+}
 
-  // ======= CHAT =======
-  function showWelcome(show) {
-    document.getElementById('welcome-screen').style.display = show ? 'flex' : 'none';
-  }
+function handleKey(e) {
+  if(e.key==='Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+}
 
-  function addMessage(role, text) {
-    showWelcome(false);
-    const container = document.getElementById('messages-container');
-    const div = document.createElement('div');
-    div.className = `msg ${role}`;
+function autoResize(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 130)+'px';
+}
 
-    const label = role === 'ai' ? 'J.A.R.V.I.S' : 'TÚ';
-    const avatar = role === 'ai' ? 'AI' : 'USR';
-
-    div.innerHTML = `
-      <div class="avatar ${role}">${avatar}</div>
-      <div>
-        <div class="msg-label">${label}</div>
-        <div class="bubble ${role}" id="bubble-${Date.now()}">${formatText(text)}</div>
-      </div>
-    `;
-
-    container.appendChild(div);
-    container.scrollTop = container.scrollHeight;
-    return div;
-  }
-
-  function formatText(text) {
-    return text
-      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-      .replace(/\*(.*?)\*/g, '<em>$1</em>')
-      .replace(/`(.*?)`/g, '<code style="font-family:Share Tech Mono,monospace;background:rgba(0,212,255,0.1);padding:1px 5px;border-radius:3px;font-size:13px;">$1</code>')
-      .replace(/\n/g, '<br>');
-  }
-
-  function showTyping() {
-    showWelcome(false);
-    const container = document.getElementById('messages-container');
-    const div = document.createElement('div');
-    div.className = 'msg ai';
-    div.id = 'typing-indicator';
-    div.innerHTML = `
-      <div class="avatar ai">AI</div>
-      <div>
-        <div class="msg-label">J.A.R.V.I.S</div>
-        <div class="bubble ai"><div class="typing"><span></span><span></span><span></span></div></div>
-      </div>
-    `;
-    container.appendChild(div);
-    container.scrollTop = container.scrollHeight;
-  }
-
-  function removeTyping() {
-    const el = document.getElementById('typing-indicator');
-    if (el) el.remove();
-  }
-
-  async function sendMessage() {
-    const input = document.getElementById('user-input');
-    const text = input.value.trim();
-    if (!text || isLoading) return;
-
-    input.value = '';
-    input.style.height = 'auto';
-    isLoading = true;
-    document.getElementById('send-btn').disabled = true;
-
-    addMessage('user', text);
-    messageHistory.push({ role: 'user', content: text });
-    addLog('Procesando consulta...');
-    showTyping();
-
-    try {
-      const response = await fetch("https://jarvis-server-production-8be2.up.railway.app/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-5",
-          max_tokens: 1000,
-          system: modes[mode].system,
-          messages: messageHistory
-        })
-      });
-
-      const data = await response.json();
-      removeTyping();
-
-      const reply = data.content?.[0]?.text || 'Error en la respuesta del sistema.';
-      messageHistory.push({ role: 'assistant', content: reply });
-      addMessage('ai', reply);
-      addLog('Respuesta generada');
-      animateStats();
-
-    } catch (err) {
-      removeTyping();
-      addMessage('ai', 'Error de conexión con el núcleo de IA. Verificando sistemas...');
-      addLog('Error: ' + err.message);
-    }
-
-    isLoading = false;
-    document.getElementById('send-btn').disabled = false;
-    document.getElementById('user-input').focus();
-  }
-
-  function sendSuggestion(text) {
-    document.getElementById('user-input').value = text;
-    sendMessage();
-  }
-
-  function clearChat() {
-    const container = document.getElementById('messages-container');
-    container.innerHTML = '';
-    messageHistory = [];
-    showWelcome(true);
-    addLog('Sesión reiniciada');
-  }
-
-  function handleKey(e) {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
-    }
-  }
-
-  function autoResize(el) {
-    el.style.height = 'auto';
-    el.style.height = Math.min(el.scrollHeight, 140) + 'px';
-  }
-
-  // Init
-  showWelcome(true);
-  document.getElementById('user-input').focus();
+document.getElementById('input').focus();
 </script>
 </body>
 </html>

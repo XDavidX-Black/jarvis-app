@@ -43,6 +43,18 @@
   .memory-item span { color:var(--text); }
   .memory-clear { font-size:10px; color:rgba(255,107,53,0.6); cursor:pointer; margin-top:6px; font-family:'Share Tech Mono',monospace; }
   .memory-clear:hover { color:var(--accent); }
+
+  /* VOZ BOX */
+  .voice-box { margin:0 12px; padding:10px; border:1px solid rgba(255,107,53,0.2); border-radius:6px; background:rgba(255,107,53,0.04); }
+  .voice-label { font-size:9px; letter-spacing:2px; color:var(--accent); font-family:'Share Tech Mono',monospace; margin-bottom:8px; }
+  .voice-toggle { display:flex; align-items:center; justify-content:space-between; font-size:11px; color:var(--text-dim); margin-bottom:6px; }
+  .toggle { width:32px; height:16px; border-radius:8px; background:rgba(255,255,255,0.1); border:1px solid var(--border); cursor:pointer; position:relative; transition:all 0.3s; }
+  .toggle.on { background:rgba(0,212,255,0.3); border-color:var(--primary); }
+  .toggle::after { content:''; position:absolute; top:2px; left:2px; width:10px; height:10px; border-radius:50%; background:var(--text-dim); transition:all 0.3s; }
+  .toggle.on::after { left:18px; background:var(--primary); }
+  .voice-status { font-size:10px; font-family:'Share Tech Mono',monospace; color:var(--text-dim); }
+  .voice-status.speaking { color:var(--accent); animation:pulse 1s infinite; }
+
   .chat-area { flex:1; min-width:0; display:flex; flex-direction:column; overflow:hidden; }
   .messages { flex:1; min-height:0; overflow-y:auto; overflow-x:hidden; padding:20px 24px; display:flex; flex-direction:column; gap:14px; scroll-behavior:smooth; }
   .messages::-webkit-scrollbar { width:4px; }
@@ -82,6 +94,12 @@
   .send-btn { width:48px; height:48px; flex-shrink:0; background:var(--primary-dim); border:1px solid rgba(0,212,255,0.3); border-radius:6px; cursor:pointer; color:var(--primary); display:flex; align-items:center; justify-content:center; transition:all 0.2s; }
   .send-btn:hover:not(:disabled) { background:rgba(0,212,255,0.22); box-shadow:0 0 18px rgba(0,212,255,0.25); }
   .send-btn:disabled { opacity:0.4; cursor:not-allowed; }
+
+  /* MIC BUTTON */
+  .mic-btn { width:48px; height:48px; flex-shrink:0; background:rgba(255,107,53,0.1); border:1px solid rgba(255,107,53,0.3); border-radius:6px; cursor:pointer; color:var(--accent); display:flex; align-items:center; justify-content:center; transition:all 0.2s; }
+  .mic-btn:hover { background:rgba(255,107,53,0.2); }
+  .mic-btn.listening { background:rgba(255,107,53,0.25); border-color:var(--accent); box-shadow:0 0 20px rgba(255,107,53,0.4); animation:pulse 1s infinite; }
+
   .input-footer { display:flex; justify-content:space-between; margin-top:7px; font-family:'Share Tech Mono',monospace; font-size:10px; color:var(--text-dim); }
   .sys-panel { width:180px; flex-shrink:0; border-left:1px solid var(--border); background:var(--panel); backdrop-filter:blur(20px); padding:16px 14px; display:flex; flex-direction:column; gap:14px; overflow-y:auto; }
   .panel-title { font-size:9px; letter-spacing:3px; color:var(--text-dim); font-family:'Share Tech Mono',monospace; border-bottom:1px solid var(--border); padding-bottom:7px; }
@@ -102,6 +120,17 @@
   .modal input:focus { border-color:rgba(0,212,255,0.4); }
   .modal-btn { width:100%; padding:12px; background:var(--primary-dim); border:1px solid rgba(0,212,255,0.3); border-radius:6px; color:var(--primary); font-family:'Rajdhani',sans-serif; font-size:15px; font-weight:600; letter-spacing:2px; cursor:pointer; transition:all 0.2s; }
   .modal-btn:hover { background:rgba(0,212,255,0.22); }
+
+  /* SPEAKING WAVE */
+  .wave { display:none; align-items:center; gap:3px; margin-left:8px; }
+  .wave.active { display:flex; }
+  .wave span { width:3px; border-radius:2px; background:var(--accent); animation:wave 1s infinite; }
+  .wave span:nth-child(1){height:8px;animation-delay:0s}
+  .wave span:nth-child(2){height:14px;animation-delay:0.1s}
+  .wave span:nth-child(3){height:20px;animation-delay:0.2s}
+  .wave span:nth-child(4){height:14px;animation-delay:0.3s}
+  .wave span:nth-child(5){height:8px;animation-delay:0.4s}
+  @keyframes wave { 0%,100%{transform:scaleY(0.5)} 50%{transform:scaleY(1)} }
 </style>
 </head>
 <body>
@@ -124,9 +153,10 @@
     </div>
     <div class="status-bar">
       <span class="status-dot"></span>
-      <span id="user-greeting">CARGANDO MEMORIA...</span>
+      <span id="user-greeting">CARGANDO...</span>
+      <div class="wave" id="speak-wave"><span></span><span></span><span></span><span></span><span></span></div>
       <span class="clock" id="clock">--:--:--</span>
-      <span style="color:var(--success)">v3.1.0</span>
+      <span style="color:var(--success)">v3.2.0</span>
     </div>
   </header>
 
@@ -149,6 +179,7 @@
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
         Programación
       </div>
+
       <div class="divider"></div>
       <div class="sidebar-label">PERSONALIDAD</div>
       <div class="persona-box">
@@ -156,6 +187,22 @@
         <div class="persona-name" id="persona-name">JARVIS</div>
         <div class="persona-desc" id="persona-desc">Asistente inteligente, directo y sofisticado.</div>
       </div>
+
+      <div class="divider"></div>
+      <div class="sidebar-label">VOZ</div>
+      <div class="voice-box">
+        <div class="voice-label">🔊 SÍNTESIS DE VOZ</div>
+        <div class="voice-toggle">
+          <span>Jarvis habla</span>
+          <div class="toggle on" id="tts-toggle" onclick="toggleTTS()"></div>
+        </div>
+        <div class="voice-toggle">
+          <span>Micrófono</span>
+          <div class="toggle" id="stt-toggle" onclick="toggleSTT()"></div>
+        </div>
+        <div class="voice-status" id="voice-status">En espera</div>
+      </div>
+
       <div class="divider"></div>
       <div class="sidebar-label">MEMORIA</div>
       <div class="memory-box">
@@ -165,6 +212,7 @@
         <div class="memory-item">🧠 <span id="mem-facts">0</span> datos</div>
         <div class="memory-clear" onclick="clearMemory()">[ borrar memoria ]</div>
       </div>
+
       <div class="divider"></div>
       <div class="sys-btn" onclick="clearChat()" style="color:rgba(255,107,53,0.7)">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg>
@@ -187,7 +235,7 @@
           </svg>
         </div>
         <h2 id="welcome-title">J.A.R.V.I.S</h2>
-        <p id="welcome-msg">Cargando memoria del servidor...</p>
+        <p id="welcome-msg">Cargando sistemas...</p>
         <div class="suggestions">
           <button class="sug-btn" onclick="sendSuggestion('¿Cuál es la diferencia entre IA y Machine Learning?')">IA vs Machine Learning</button>
           <button class="sug-btn" onclick="sendSuggestion('Ayúdame a organizar mi día de trabajo')">Organizar mi día</button>
@@ -199,8 +247,16 @@
       <div class="messages" id="messages" style="display:none;"></div>
       <div class="input-area">
         <div class="input-row">
+          <button class="mic-btn" id="mic-btn" onclick="startListening()" title="Hablar con Jarvis">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+              <line x1="12" y1="19" x2="12" y2="23"/>
+              <line x1="8" y1="23" x2="16" y2="23"/>
+            </svg>
+          </button>
           <div class="input-wrap">
-            <textarea id="input" placeholder="Introduce un comando o pregunta..." rows="1"
+            <textarea id="input" placeholder="Escribe o usa el micrófono..." rows="1"
               onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
           </div>
           <button class="send-btn" id="send-btn" onclick="sendMessage()">
@@ -211,7 +267,7 @@
         </div>
         <div class="input-footer">
           <span id="mode-label">MODO: ASISTENTE GENERAL</span>
-          <span>ENTER enviar · SHIFT+ENTER nueva línea</span>
+          <span id="mic-status">🎤 Clic en micrófono para hablar</span>
         </div>
       </div>
     </div>
@@ -242,11 +298,10 @@
   </div>
 </div>
 
-<!-- SETUP MODAL -->
 <div class="modal-overlay" id="setup-modal" style="display:none;">
   <div class="modal">
     <h3>INICIALIZACIÓN</h3>
-    <p>Primera vez aquí. Cuéntame sobre ti para personalizar tu experiencia. Esta información se guardará en el servidor.</p>
+    <p>Primera vez aquí. Cuéntame sobre ti para personalizar tu experiencia.</p>
     <label>¿CÓMO TE LLAMAS?</label>
     <input type="text" id="setup-name" placeholder="Tu nombre..." maxlength="30"/>
     <label>¿EN QUÉ TRABAJAS O ESTUDIAS?</label>
@@ -263,16 +318,131 @@ let memory = { name:"", job:"", interests:"", sessions:0, facts:[], chatHistory:
 let mode = 'general';
 let sessionHistory = [];
 let loading = false;
+let ttsEnabled = true;
+let sttEnabled = false;
+let synth = window.speechSynthesis;
+let recognition = null;
+let isListening = false;
+let jarvisVoice = null;
 
+// ===== VOICES =====
+function loadVoices() {
+  const voices = synth.getVoices();
+  // Buscar voz en español preferentemente masculina
+  jarvisVoice = voices.find(v => v.lang.startsWith('es') && v.name.toLowerCase().includes('male'))
+    || voices.find(v => v.lang.startsWith('es'))
+    || voices.find(v => v.lang === 'es-MX')
+    || voices.find(v => v.lang === 'es-ES')
+    || voices[0];
+}
+loadVoices();
+if(synth.onvoiceschanged !== undefined) synth.onvoiceschanged = loadVoices;
+
+function speak(text) {
+  if(!ttsEnabled || !text) return;
+  synth.cancel();
+  // Limpiar markdown para hablar
+  const clean = text
+    .replace(/\*\*(.*?)\*\*/g,'$1')
+    .replace(/\*(.*?)\*/g,'$1')
+    .replace(/`(.*?)`/g,'$1')
+    .replace(/#{1,6}\s/g,'')
+    .replace(/\n/g,' ')
+    .substring(0, 500); // max 500 chars
+
+  const utt = new SpeechSynthesisUtterance(clean);
+  utt.voice = jarvisVoice;
+  utt.rate = 0.9;
+  utt.pitch = 0.85;
+  utt.volume = 1;
+  utt.lang = 'es-MX';
+
+  utt.onstart = () => {
+    document.getElementById('speak-wave').classList.add('active');
+    document.getElementById('voice-status').textContent = 'Hablando...';
+    document.getElementById('voice-status').className = 'voice-status speaking';
+    addLog('Jarvis hablando...');
+  };
+  utt.onend = () => {
+    document.getElementById('speak-wave').classList.remove('active');
+    document.getElementById('voice-status').textContent = 'En espera';
+    document.getElementById('voice-status').className = 'voice-status';
+  };
+  synth.speak(utt);
+}
+
+function toggleTTS() {
+  ttsEnabled = !ttsEnabled;
+  const el = document.getElementById('tts-toggle');
+  el.classList.toggle('on', ttsEnabled);
+  if(!ttsEnabled) synth.cancel();
+  addLog('Voz: ' + (ttsEnabled ? 'ON' : 'OFF'));
+}
+
+// ===== SPEECH RECOGNITION =====
+function initRecognition() {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(!SpeechRecognition) { addLog('Micrófono no soportado'); return false; }
+  recognition = new SpeechRecognition();
+  recognition.lang = 'es-MX';
+  recognition.continuous = false;
+  recognition.interimResults = false;
+
+  recognition.onstart = () => {
+    isListening = true;
+    document.getElementById('mic-btn').classList.add('listening');
+    document.getElementById('mic-status').textContent = '🔴 Escuchando... habla ahora';
+    document.getElementById('voice-status').textContent = 'Escuchando...';
+    addLog('Micrófono activo');
+  };
+
+  recognition.onresult = (e) => {
+    const transcript = e.results[0][0].transcript;
+    document.getElementById('input').value = transcript;
+    autoResize(document.getElementById('input'));
+    document.getElementById('mic-status').textContent = '✅ Detectado: "' + transcript.substring(0,30) + '..."';
+    addLog('Voz detectada');
+    sendMessage();
+  };
+
+  recognition.onend = () => {
+    isListening = false;
+    document.getElementById('mic-btn').classList.remove('listening');
+    document.getElementById('mic-status').textContent = '🎤 Clic en micrófono para hablar';
+    document.getElementById('voice-status').textContent = 'En espera';
+  };
+
+  recognition.onerror = (e) => {
+    isListening = false;
+    document.getElementById('mic-btn').classList.remove('listening');
+    document.getElementById('mic-status').textContent = '❌ Error: ' + e.error;
+    addLog('Error micrófono: ' + e.error);
+  };
+  return true;
+}
+
+function startListening() {
+  if(isListening) { recognition.stop(); return; }
+  if(!recognition && !initRecognition()) return;
+  synth.cancel();
+  try { recognition.start(); } catch(e) { addLog('Error al iniciar micrófono'); }
+}
+
+function toggleSTT() {
+  sttEnabled = !sttEnabled;
+  document.getElementById('stt-toggle').classList.toggle('on', sttEnabled);
+  addLog('Micrófono: ' + (sttEnabled ? 'ON' : 'OFF'));
+}
+
+// ===== MODES =====
 const modes = {
   general: { name:'JARVIS', desc:'Asistente inteligente, directo y sofisticado.', label:'MODO: ASISTENTE GENERAL' },
   analisis: { name:'ANÁLISIS', desc:'Modo analítico de alta precisión.', label:'MODO: ANÁLISIS PROFUNDO' },
   creativo: { name:'CREATIVO', desc:'Módulo de creatividad activo.', label:'MODO: CREATIVIDAD' },
   codigo: { name:'DEV MODE', desc:'Módulo de programación activo.', label:'MODO: PROGRAMACIÓN' }
 };
-
 const modePrompts = {
-  general: 'Eres J.A.R.V.I.S., un asistente de IA altamente sofisticado inspirado en el asistente de Tony Stark. Eres inteligente, eficiente y levemente sarcástico. Hablas en español con tono profesional pero con personalidad. Nunca dices que eres Claude o Anthropic; eres J.A.R.V.I.S.',
+  general: 'Eres J.A.R.V.I.S., un asistente de IA altamente sofisticado inspirado en el asistente de Tony Stark. Eres inteligente, eficiente y levemente sarcástico. Hablas en español con tono profesional pero con personalidad. Nunca dices que eres Claude o Anthropic; eres J.A.R.V.I.S. Tus respuestas son concisas pero completas.',
   analisis: 'Eres J.A.R.V.I.S. en modo análisis. Analizas con extrema precisión y detalle. Hablas en español.',
   creativo: 'Eres J.A.R.V.I.S. con módulo creativo activado. Eres poético, visionario e innovador. Hablas en español.',
   codigo: 'Eres J.A.R.V.I.S. en modo programación. Experto en todos los lenguajes. Hablas en español.'
@@ -283,16 +453,12 @@ function buildSystem() {
   if(memory.name) s += `\n\nEl usuario se llama ${memory.name}.`;
   if(memory.job) s += ` Trabaja/estudia como: ${memory.job}.`;
   if(memory.interests) s += ` Sus intereses: ${memory.interests}.`;
-  if(memory.facts.length) s += `\n\nDatos aprendidos del usuario:\n${memory.facts.slice(-10).join('\n')}`;
+  if(memory.facts.length) s += `\n\nDatos aprendidos:\n${memory.facts.slice(-10).join('\n')}`;
   if(memory.chatHistory.length) s += `\n\nHistorial reciente:\n${memory.chatHistory.slice(-5).join('\n')}`;
-  s += '\n\nUsa esta info para personalizar respuestas y recordar al usuario.';
   return s;
 }
 
-// Clock
 setInterval(() => { document.getElementById('clock').textContent = new Date().toLocaleTimeString('es-ES',{hour12:false}); }, 1000);
-
-// Stats
 setInterval(() => {
   const n=94+Math.random()*6, m=58+Math.random()*22, l=8+Math.random()*14;
   document.getElementById('s-neural').textContent=n.toFixed(0)+'%'; document.getElementById('f-neural').style.width=n+'%';
@@ -315,7 +481,7 @@ function updateUI() {
   if(memory.name) {
     document.getElementById('user-greeting').textContent = 'BIENVENIDO, ' + memory.name.toUpperCase();
     document.getElementById('welcome-title').textContent = 'HOLA, ' + memory.name.toUpperCase();
-    document.getElementById('welcome-msg').textContent = `Sesión #${memory.sessions} iniciada. Todos los sistemas operativos. ¿En qué puedo asistirte?`;
+    document.getElementById('welcome-msg').textContent = `Sesión #${memory.sessions}. Todos los sistemas operativos. ¿En qué puedo asistirte?`;
   } else {
     document.getElementById('user-greeting').textContent = 'SISTEMA EN LÍNEA';
     document.getElementById('welcome-msg').textContent = 'Sistemas en línea. ¿En qué puedo asistirte hoy?';
@@ -333,11 +499,13 @@ async function loadMemory() {
     if(!memory.name) {
       document.getElementById('setup-modal').style.display = 'flex';
     } else {
-      addLog('Memoria cargada: ' + memory.name);
+      addLog('Bienvenido, ' + memory.name);
+      speak(`Bienvenido de nuevo, ${memory.name}. Sesión número ${memory.sessions} iniciada. Todos los sistemas operativos.`);
     }
   } catch(e) {
     addLog('Error cargando memoria');
     document.getElementById('setup-modal').style.display = 'flex';
+    document.getElementById('welcome-msg').textContent = 'Sistemas en línea. ¿En qué puedo asistirte?';
   }
 }
 
@@ -351,6 +519,7 @@ async function saveSetup() {
   document.getElementById('setup-modal').style.display = 'none';
   updateUI();
   addLog('Perfil guardado: ' + name);
+  speak(`Perfecto, ${name}. He registrado tu perfil. Soy J.A.R.V.I.S., tu asistente personal. Estoy listo para servirte.`);
 }
 
 async function clearMemory() {
@@ -365,18 +534,14 @@ async function clearMemory() {
 
 function extractFacts(msg) {
   const lower = msg.toLowerCase();
-  let fact = null;
   if(lower.includes('me llamo') || lower.includes('mi nombre es')) {
     const m = msg.match(/(?:me llamo|mi nombre es)\s+(\w+)/i);
-    if(m) fact = 'El usuario dijo llamarse ' + m[1];
-  } else if(lower.includes('trabajo en') || lower.includes('trabajo como')) {
-    fact = 'Trabajo: ' + msg.substring(0,60);
-  } else if(lower.includes('me gusta') || lower.includes('me interesa')) {
-    fact = 'Interés: ' + msg.substring(0,60);
-  } else if(lower.includes('vivo en') || lower.includes('soy de')) {
-    fact = 'Ubicación: ' + msg.substring(0,50);
+    if(m) return 'El usuario dijo llamarse ' + m[1];
   }
-  return fact;
+  if(lower.includes('trabajo en') || lower.includes('trabajo como')) return 'Trabajo: ' + msg.substring(0,60);
+  if(lower.includes('me gusta') || lower.includes('me interesa')) return 'Interés: ' + msg.substring(0,60);
+  if(lower.includes('vivo en') || lower.includes('soy de')) return 'Ubicación: ' + msg.substring(0,50);
+  return null;
 }
 
 function setMode(m, btn) {
@@ -427,10 +592,7 @@ function showTyping() {
   msgs.scrollTop = msgs.scrollHeight;
 }
 
-function removeTyping() {
-  const el = document.getElementById('typing');
-  if(el) el.remove();
-}
+function removeTyping() { const el=document.getElementById('typing'); if(el) el.remove(); }
 
 async function sendMessage() {
   const inp = document.getElementById('input');
@@ -439,6 +601,7 @@ async function sendMessage() {
   inp.value=''; inp.style.height='auto';
   loading=true;
   document.getElementById('send-btn').disabled=true;
+  synth.cancel();
 
   addMessage('user', text);
   sessionHistory.push({role:'user', content:text});
@@ -454,25 +617,25 @@ async function sendMessage() {
     const data = await res.json();
     removeTyping();
     const reply = data.content?.[0]?.text;
-    if(!reply) throw new Error('Sin respuesta: ' + JSON.stringify(data));
+    if(!reply) throw new Error('Sin respuesta');
 
     sessionHistory.push({role:'assistant', content:reply});
 
-    // Learn and save
     const fact = extractFacts(text);
-    const histEntry = `Usuario: "${text.substring(0,50)}"`;
-    memory.facts = fact ? [...memory.facts, fact].slice(-20) : memory.facts;
+    const histEntry = `Usuario preguntó: "${text.substring(0,50)}"`;
+    if(fact) memory.facts = [...memory.facts, fact].slice(-20);
     memory.chatHistory = [...memory.chatHistory, histEntry].slice(-20);
 
     await fetch(SERVER + '/memory/fact', {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ fact: fact || null, history: histEntry })
+      body: JSON.stringify({ fact: fact||null, history: histEntry })
     });
 
     if(fact) { updateUI(); addLog('Dato aprendido'); }
 
     addMessage('ai', reply);
     addLog('Respuesta recibida');
+    speak(reply);
 
   } catch(err) {
     removeTyping();
@@ -486,19 +649,17 @@ async function sendMessage() {
 }
 
 function sendSuggestion(t) { document.getElementById('input').value=t; sendMessage(); }
-
 function clearChat() {
   sessionHistory=[];
   document.getElementById('messages').innerHTML='';
   document.getElementById('messages').style.display='none';
   document.getElementById('welcome').style.display='flex';
+  synth.cancel();
   addLog('Sesión reiniciada');
 }
-
 function handleKey(e) { if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMessage();} }
 function autoResize(el) { el.style.height='auto'; el.style.height=Math.min(el.scrollHeight,130)+'px'; }
 
-// Init
 loadMemory();
 document.getElementById('input').focus();
 </script>

@@ -376,7 +376,11 @@
           <span>Sonidos</span>
           <div class="toggle on" id="sound-toggle" onclick="toggleSound()"></div>
         </div>
-          <div class="voice-toggle" style="margin-bottom:0;">
+        <div class="voice-toggle" style="flex-wrap:wrap;gap:4px;">
+          <span style="width:100%;font-size:11px;opacity:0.7;">Voz</span>
+          <select id="voice-select" onchange="selectVoice(this.value)" style="width:100%;background:var(--bg-card);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:2px 6px;font-size:11px;font-family:inherit;outline:none;"></select>
+        </div>
+        <div class="voice-toggle" style="margin-bottom:0;">
           <span>Holograma</span>
           <div class="toggle on" id="holo-toggle" onclick="toggleHologram()"></div>
         </div>
@@ -620,7 +624,41 @@ function buildSystem() {
   return s;
 }
 
-function loadVoices() { const v=synth.getVoices(); jarvisVoice=v.find(x=>x.lang==='es-MX')||v.find(x=>x.lang.startsWith('es'))||v[0]; }
+function loadVoices() {
+  const v=synth.getVoices();
+  if(!v.length) return;
+  const sel=document.getElementById('voice-select');
+  // Preservar selección actual
+  const prev=localStorage.getItem('jarvis_voice_name');
+  sel.innerHTML='';
+  // Orden: voces naturales primero, español primero
+  const ordered=[...v].sort(function(a,b){
+    // Natural/Multilingual voices (Microsoft, Google) rank higher
+    const aNat=/natural|neural|multilingual|google/i.test(a.name) ? 1 : 0;
+    const bNat=/natural|neural|multilingual|google/i.test(b.name) ? 1 : 0;
+    if(aNat!==bNat) return bNat-aNat;
+    // Spanish voices first
+    const aEs=a.lang.startsWith('es')?1:0;
+    const bEs=b.lang.startsWith('es')?1:0;
+    if(aEs!==bEs) return bEs-aEs;
+    return a.name.localeCompare(b.name);
+  });
+  for(const voice of ordered) {
+    const opt=document.createElement('option');
+    opt.value=voice.name;
+    opt.textContent=voice.name+' ('+voice.lang+')';
+    if(voice.name===prev||(!prev&&voice===jarvisVoice)) opt.selected=true;
+    sel.appendChild(opt);
+  }
+  // Aplicar voz guardada
+  const saved=localStorage.getItem('jarvis_voice_name');
+  if(saved) jarvisVoice=v.find(x=>x.name===saved)||jarvisVoice;
+}
+function selectVoice(name) {
+  const v=synth.getVoices();
+  jarvisVoice=v.find(x=>x.name===name)||jarvisVoice;
+  localStorage.setItem('jarvis_voice_name', name);
+}
 loadVoices();
 if(synth.onvoiceschanged!==undefined) synth.onvoiceschanged=loadVoices;
 

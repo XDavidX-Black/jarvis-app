@@ -1358,21 +1358,26 @@ async function getWeather() {
   addLog('Consultando clima...');
   showTyping();
   try {
-    const res = await fetch('https://wttr.in?format=%C|%t|%h|%w|%p&lang=es', { headers: { 'User-Agent': 'curl/8.0' } });
-    const text = await res.text();
-    const parts = text.split('|');
-    const condition = parts[0] || '—';
-    const temp = parts[1] || '—';
-    const humidity = parts[2] || '—';
-    const wind = parts[3] || '—';
-    const precip = parts[4] || '—';
+    const res = await fetch('https://wttr.in?format=j1');
+    const data = await res.json();
+    const cc = data.current_condition[0] || {};
+    const area = data.nearest_area[0] || {};
+    const city = (area.areaName?.[0]?.value || '—');
+    const country = (area.country?.[0]?.value || '');
+    const condition = (cc.weatherDesc?.[0]?.value || '—');
+    const temp = cc.temp_C ? cc.temp_C+'°C' : '—';
+    const feels = cc.FeelsLikeC ? cc.FeelsLikeC+'°C' : '—';
+    const humidity = cc.humidity ? cc.humidity+'%' : '—';
+    const wind = cc.windspeedKmph ? cc.windspeedKmph+'km/h '+cc.winddir16Point : '—';
+    const precip = cc.precipMM ? cc.precipMM+'mm' : '0mm';
+    const vis = cc.visibility ? cc.visibility+'km' : '—';
     removeTyping();
-    addMessage('ai', '🌤️ **Clima actual**\n\n☁️ **Estado:** '+condition+'\n🌡️ **Temperatura:** '+temp+'\n💧 **Humedad:** '+humidity+'\n💨 **Viento:** '+wind+'\n🌧️ **Precipitación:** '+precip+'\n\n📍 Basado en tu IP');
-    addLog('Clima recibido');
+    addMessage('ai', `🌤️ **Clima en ${city}, ${country}**\n\n☁️ **Estado:** ${condition}\n🌡️ **Temperatura:** ${temp} (sensación ${feels})\n💧 **Humedad:** ${humidity}\n💨 **Viento:** ${wind}\n🌧️ **Precipitación:** ${precip}\n👁️ **Visibilidad:** ${vis}`);
+    addLog('Clima recibido: '+city);
   } catch(e) {
     removeTyping();
     addMessage('ai', '❌ No se pudo obtener el clima. Intenta más tarde.');
-    addLog('Error clima');
+    addLog('Error clima: '+e.message);
   }
 }
 

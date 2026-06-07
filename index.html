@@ -978,15 +978,21 @@ function displayImageInChat(userPrompt, imgUrl, engine) {
   const inner = document.createElement('div'); inner.className = 'msg-inner';
   const label = document.createElement('div'); label.className = 'msg-label'; label.textContent = 'J.A.R.V.I.S';
   const bubble = document.createElement('div'); bubble.className = 'bubble ai';
-  bubble.innerHTML = `🎨 <strong>Imagen generada:</strong> ${userPrompt.replace(/</g,'&lt;').replace(/>/g,'&gt;')}<br><small style="color:var(--text-dim);font-size:10px;">${engine}</small>`;
+  const safePrompt = userPrompt.replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  bubble.innerHTML = '🎨 <strong>Imagen:</strong> '+safePrompt+'<br><small style="color:var(--text-dim);font-size:10px;">'+engine+'</small>';
   const img = document.createElement('img');
   img.src = imgUrl; img.alt = userPrompt;
   img.style.cssText = 'max-width:320px;border-radius:6px;border:1px solid var(--border);cursor:pointer;display:block;margin-top:6px;';
   img.onclick = function(){ openImgModal(imgUrl); };
-  img.onerror = function(){ fallback.style.display = 'block'; img.style.display = 'none'; };
   const fallback = document.createElement('div');
-  fallback.style.cssText = 'display:none;padding:12px;border:1px dashed var(--border);border-radius:6px;text-align:center;margin-top:4px;';
-  fallback.innerHTML = '⏳ Generando... <a href="'+imgUrl+'" target="_blank" style="color:var(--primary);">Abrir enlace directo</a>';
+  fallback.style.cssText = 'display:none;padding:12px;border:1px dashed var(--border);border-radius:6px;text-align:center;margin-top:4px;font-size:11px;';
+  img.onerror = function(){ fallback.style.display='block'; img.style.display='none'; };
+  const retryBtn = document.createElement('button');
+  retryBtn.textContent = '↻ Reintentar';
+  retryBtn.style.cssText = 'background:var(--primary-dim);border:1px solid var(--border);color:var(--primary);padding:4px 10px;border-radius:4px;cursor:pointer;font-family:Share Tech Mono,monospace;font-size:10px;margin-left:8px;';
+  retryBtn.onclick = function(){ retryBtn.textContent='↻ Esperando 3s...'; retryBtn.disabled=true; generateImagePollinations(userPrompt, 3000); msgDiv.remove(); };
+  fallback.innerHTML = '⏳ Rate limit — <a href="'+imgUrl+'" target="_blank" style="color:var(--primary);">abrir enlace directo</a>';
+  fallback.appendChild(retryBtn);
   const link = document.createElement('a');
   link.href = imgUrl; link.target = '_blank';
   link.textContent = '⬇ Abrir imagen en nueva pestaña';
@@ -1015,7 +1021,7 @@ function promptSetHFToken() {
 }
 
 /* =========================================================
-   GENERAR IMAGEN: Hugging Face + Pollinations fallback
+   GENERAR IMAGEN: Hugging Face (desde frontend) + Pollinations fallback
    ========================================================= */
 function promptGenerateImage() {
   const p = window.prompt('¿Qué imagen quieres generar?\nDescríbela en detalle:', 'Robot futurista en ciudad neon, iluminación cinematográfica');
@@ -1028,18 +1034,38 @@ async function generateImage(userPrompt, skipUserMsg) {
     addLog('Generando imagen...');
     addMessage('user', `🎨 Generar imagen: "${userPrompt}"`);
   }
+  // Try Hugging Face first (if token is set and not the default compromised one)
+  if(hfToken && !hfToken.startsWith('hf_krsj')) {
+    try {
+      await generateImageHF(userPrompt);
+      return;
+    } catch(e) {
+      addLog('HF falló, usando Pollinations: '+e.message);
+    }
+  }
   generateImagePollinations(userPrompt);
-}
-
-function generateImagePollinations(userPrompt) {
-  const encoded = encodeURIComponent(userPrompt + ', high quality, detailed');
-  const seed = Math.floor(Math.random() * 99999);
-  const imgUrl = `https://image.pollinations.ai/prompt/${encoded}?width=768&height=512&seed=${seed}&nologo=true`;
-  displayImageInChat(userPrompt, imgUrl, 'Pollinations');
 }
 
 async function generateImageHF(userPrompt) {
-  generateImagePollinations(userPrompt);
+  const model = 'black-forest-labs/FLUX.1-dev';
+  addLog('Generando con HF...');
+  const res = await fetch(`https://api-inference.huggingface.co/models/${model}`, {
+    method: 'POST',
+    headers: { 'Authorization': 'Bearer '+hfToken, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ inputs: userPrompt })
+  });
+  if(!res.ok) throw new Error('HF error: '+res.status);
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  displayImageInChat(userPrompt, url, 'Hugging Face (FLUX.1)');
+}
+
+function generateImagePollinations(userPrompt, delayMs) {
+  if(!delayMs) delayMs = 0;
+  const encoded = encodeURIComponent(userPrompt + ', high quality, detailed');
+  const seed = Math.floor(Math.random() * 99999);
+  const imgUrl = `https://image.pollinations.ai/prompt/${encoded}?width=768&height=512&seed=${seed}&nologo=true`;
+  setTimeout(function(){ displayImageInChat(userPrompt, imgUrl, 'Pollinations'); }, delayMs);
 }
 
 /* Image modal */

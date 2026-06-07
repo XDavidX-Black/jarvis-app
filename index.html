@@ -639,6 +639,7 @@ let jarvisVoice = null;
 // Stores last AI text response for export
 let lastAIResponse = '';
 let pendingImage = null;
+let lastUploaded = { content: '', type: '', name: '' };
 
 const modes = {
   general: { name:'JARVIS', desc:'Asistente inteligente, directo y sofisticado.', label:'MODO: ASISTENTE GENERAL' },
@@ -713,7 +714,8 @@ function speak(text) {
   if(!ttsEnabled||!text) return;
   synth.cancel();
   if(audioPlayer) { audioPlayer.pause(); audioPlayer.src = ''; }
-  const clean=text.replace(/\*\*(.*?)\*\*/g,'$1').replace(/\*(.*?)\*/g,'$1').replace(/`(.*?)`/g,'$1').replace(/#{1,6}\s/g,'').replace(/\n/g,' ').substring(0,300);
+  const clean=text.replace(/\*\*(.*?)\*\*/g,'$1').replace(/\*(.*?)\*/g,'$1').replace(/`(.*?)`/g,'$1').replace(/#{1,6}\s/g,'').replace(/\n/g,' ').substring(0,2000);
+  if(!clean.trim()) return;
   const lang=jarvisVoice?jarvisVoice.lang:'es-MX';
   if(naturalTTS) {
     const url=SERVER+'/tts?text='+encodeURIComponent(clean)+'&lang='+encodeURIComponent(lang);
@@ -853,6 +855,10 @@ function addMessage(role,text,imgUrl){
   const actions = role==='ai' ? `<div class="msg-actions"><span class="msg-action" onclick="copyText(\`${safeText.substring(0,500)}\')" title="Copiar">📋</span><span class="msg-action" onclick="translateMsg(this)" title="Traducir">🌐</span></div>` : '';
   div.innerHTML=`<div class="avatar ${role}">${role==='ai'?'AI':'USR'}</div><div class="msg-inner"><div class="msg-label">${role==='ai'?'J.A.R.V.I.S':'TÚ'}${actions}</div><div class="bubble ${role}">${fmt(text)}${imgHTML}</div></div>`;
   msgs.appendChild(div); msgs.scrollTop=msgs.scrollHeight;
+  // Auto-hablar mensajes del AI (excepto metadatos cortos)
+  if(role==='ai' && text.length > 15 && !text.startsWith('🎨') && !text.startsWith('⏳') && !text.startsWith('📱') && !text.startsWith('📋') && !text.startsWith('⚠️') && !text.startsWith('❌') && !text.startsWith('✅') && !/^[\d\s:]+$/.test(text)) {
+    speak(text);
+  }
 }
 
 function copyText(t) { navigator.clipboard.writeText(t).then(function(){ showToast('📋 Copiado'); }); }
@@ -977,6 +983,13 @@ async function sendMessage(){
       const qrText = text.replace(/^(genera|crea|haz|haceme|elabora|produce).*?(?:qr|código qr|codigo qr)\s*(?:de|para|con)?\s*/i, '').trim() || text;
       generateQR(qrText);
     }
+    // Detectar conversión de archivos
+    const convMatch = lower.match(/(convierte|conversión|convertir|pasa|transforma)\s+(.*?)\s+(a|para)\s+(pdf|word|excel|xlsx|xls|doc|docx)/i);
+    if(convMatch && lastUploaded.content) {
+      const target = convMatch[4].toLowerCase();
+      const tMap = {pdf:'pdf', word:'word', doc:'word', docx:'word', excel:'excel', xlsx:'excel', xls:'excel'};
+      convertFile(lastUploaded.content, lastUploaded.type, tMap[target]||target, lastUploaded.name);
+    }
     // Detectar recordatorios
     const remindMatch = text.toLowerCase().match(/recuerda(?:me)?\s+(.+?)\s+en\s+(\d+)\s*(segundo|minuto|min|hora|s|m|h)/i);
     if(remindMatch) {
@@ -1054,10 +1067,11 @@ async function handleFileUpload(event) {
       const reader = new FileReader();
       reader.onload = function(e) {
         pendingImage = e.target.result;
-        removeTyping();
-        addMessage('ai', `🖼️ Imagen cargada: **${file.name}**\nAhora escribe un mensaje y J.A.R.V.I.S la analizará.`, pendingImage);
-        addLog('Imagen lista para análisis');
-        document.getElementById('img-badge').classList.add('active');
+      removeTyping();
+      addMessage('ai', `🖼️ Imagen cargada: **${file.name}**\nAhora escribe un mensaje y J.A.R.V.I.S la analizará.`, pendingImage);
+      addLog('Imagen lista para análisis');
+      document.getElementById('img-badge').classList.add('active');
+      lastUploaded = { content: '[IMAGEN]', type: 'image', name: file.name };
       };
       reader.readAsDataURL(file);
       return;
@@ -1078,6 +1092,7 @@ async function handleFileUpload(event) {
       addMessage('ai', `📄 **PDF leído:** ${file.name} (${pdf.numPages} páginas)\n\n**Vista previa:**\n${preview}...\n\nEl contenido está listo. ¿Qué quieres hacer con este PDF?`);
       sessionHistory.push({role:'user', content:`El usuario subió un PDF llamado "${file.name}". Contenido:\n${text.substring(0,3000)}`});
       addLog('PDF procesado');
+      lastUploaded = { content: text, type: 'pdf', name: file.name };
       return;
     }
 
@@ -1088,6 +1103,7 @@ async function handleFileUpload(event) {
       addMessage('ai', `📝 **Archivo leído:** ${file.name}\n\n**Vista previa:**\n${text.substring(0,300)}...\n\nListo para analizar. ¿Qué necesitas?`);
       sessionHistory.push({role:'user', content:`El usuario subió el archivo "${file.name}". Contenido:\n${text.substring(0,3000)}`});
       addLog('Texto leído');
+      lastUploaded = { content: text, type: 'txt', name: file.name };
       return;
     }
 
@@ -1101,6 +1117,7 @@ async function handleFileUpload(event) {
       addMessage('ai', `📊 **Excel leído:** ${file.name} (hoja: ${wb.SheetNames[0]})\n\n**Vista previa:**\n${csvData.substring(0,400)}...\n\n¿Qué análisis quieres hacer?`);
       sessionHistory.push({role:'user', content:`El usuario subió un Excel "${file.name}". Datos:\n${csvData.substring(0,3000)}`});
       addLog('Excel procesado');
+      lastUploaded = { content: csvData, type: 'excel', name: file.name };
       return;
     }
 
@@ -1377,6 +1394,21 @@ function generateQR(text) {
 }
 function enhancePrompt(prompt) {
   return fetch(SERVER+'/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({system:'Eres un experto en prompts de IA para generar imágenes. Mejora el siguiente prompt manteniendo la esencia pero haciéndolo más detallado, descriptivo y efectivo para generación de imágenes. Responde SOLO con el prompt mejorado, sin explicaciones ni comillas.',messages:[{role:'user',content:prompt}],max_tokens:300})}).then(function(r){return r.json()}).then(function(d){return d.content?.[0]?.text?.trim()||prompt}).catch(function(){return prompt});
+}
+function convertFile(content, fromType, toType, fileName) {
+  addLog('Convirtiendo ' + fromType + ' → ' + toType);
+  if(toType === 'pdf') {
+    generatePDF('Convertido desde ' + fileName.toUpperCase() + '\n\nFuente: ' + fromType.toUpperCase() + '\n\n' + content);
+  } else if(toType === 'word') {
+    generateWord('Convertido desde ' + fileName.toUpperCase() + '\n\nFuente: ' + fromType.toUpperCase() + '\n\n' + content);
+  } else if(toType === 'excel') {
+    // Intentar parsear como tabla
+    if(content.includes('|') || content.includes('\t') || content.includes(',')) {
+      generateExcelFromContent(content);
+    } else {
+      generateExcelFixed('Convertido desde ' + fileName.toUpperCase() + '\n\nFuente: ' + fromType.toUpperCase() + '\n\n' + content);
+    }
+  }
 }
 const uiCommands = {
   'abrir sidebar': function(){ openSidebar(); },

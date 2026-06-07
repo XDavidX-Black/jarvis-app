@@ -542,6 +542,11 @@
             <button class="dash-btn" onclick="getWeather()">🌤 Clima</button>
             <button class="dash-btn" onclick="detectIP()">🌐 IP</button>
             <button class="dash-btn" onclick="clearChat();toggleDashboard()">🗑 Nuevo chat</button>
+            <button class="dash-btn" onclick="getNews()">📰 Noticias</button>
+            <button class="dash-btn" onclick="getJoke()">😂 Chiste</button>
+            <button class="dash-btn" onclick="getTrivia()">❓ Trivia</button>
+            <button class="dash-btn" onclick="generatePassword()">🔑 Contraseña</button>
+            <button class="dash-btn" onclick="startTimer(60)">⏱️ 60s</button>
           </div></div>
         </div>
       </div>
@@ -984,12 +989,56 @@ async function sendMessage(){
       generateQR(qrText);
     }
     // Detectar conversión de archivos
-    const convMatch = lower.match(/(convierte|conversión|convertir|pasa|transforma)\s+(.*?)\s+(a|para)\s+(pdf|word|excel|xlsx|xls|doc|docx)/i);
+    const convMatch = lower.match(/(convierte|conversión|convertir|pasa|transforma)\s+(.*?)\s+(a|para)\s+(pdf|word|excel|xlsx|xls|doc|docx|txt|csv|html|json|md|markdown)/i);
     if(convMatch && lastUploaded.content) {
       const target = convMatch[4].toLowerCase();
-      const tMap = {pdf:'pdf', word:'word', doc:'word', docx:'word', excel:'excel', xlsx:'excel', xls:'excel'};
+      const tMap = {pdf:'pdf', word:'word', doc:'word', docx:'word', excel:'excel', xlsx:'excel', xls:'excel', txt:'txt', csv:'csv', html:'html', json:'json', md:'html', markdown:'html'};
       convertFile(lastUploaded.content, lastUploaded.type, tMap[target]||target, lastUploaded.name);
     }
+    // Detectar utilidades
+    if(/^noticias|últimas noticias|dame noticias/i.test(lower)) { getNews(); }
+    const wikiMatch = lower.match(/^(busca|qué es|quien es|definición|significado)\s+(.+)/i);
+    if(wikiMatch) { searchWiki(wikiMatch[2]); }
+    const exchMatch = lower.match(/(cambio|divisa|convierte)\s+(\d+(?:\.\d+)?)\s*(usd|eur|mxn|brl|gbp|jpy|cad|aud|clp|cop|ars|pen|uyu|try|rub|inr|cny|krw|chf|nzd|sek|nok|dkk|pln|czk|huf|ils|zar|sar|aed|sgd|hkd|twd|thb|myr|idr|php|vnd)\s*(?:a|para|en)\s*(usd|eur|mxn|brl|gbp|jpy|cad|aud|clp|cop|ars|pen|uyu|try|rub|inr|cny|krw|chf|nzd|sek|nok|dkk|pln|czk|huf|ils|zar|sar|aed|sgd|hkd|twd|thb|myr|idr|php|vnd)/i);
+    if(exchMatch) { getExchange(exchMatch[2], exchMatch[3], exchMatch[5]); }
+    if(/^(genera|crea)\s*(una\s*)?contraseña|password/i.test(lower)) { generatePassword(); }
+    const calcMatch = lower.match(/^(cuánto es|calcula|calc|cuanto es)\s+(.+)/i);
+    if(calcMatch) { safeEval(calcMatch[2]); }
+    const pickMatch = lower.match(/^(elige|escoge|selecciona|sortea)\s+(?:entre\s+)?(.+)/i);
+    if(pickMatch) { pickRandom(pickMatch[2]); }
+    const colorMatch = lower.match(/^(color|convierte color)\s+(#[0-9a-fA-F]{6}|rgb\s*\(.*?\))/i);
+    if(colorMatch) { colorConverter(colorMatch[2]); }
+    if(/^(chiste|broma|dime un chiste|cuenta un chiste)/i.test(lower)) { getJoke(); }
+    if(/^(trivia|pregunta|dime una trivia)/i.test(lower)) { getTrivia(); }
+    if(/^la respuesta es/i.test(lower) && window._lastTrivia) {
+      const ans = lower.replace('la respuesta es','').trim();
+      if(ans.toLowerCase() === window._lastTrivia.toLowerCase()) addMessage('ai','✅ **¡Correcto!** 🎉');
+      else addMessage('ai','❌ **Incorrecto.** La respuesta era: **' + window._lastTrivia + '**');
+      window._lastTrivia = null;
+    }
+    const recipeSearch = lower.match(/^(receta|recetas)\s+(?:con|de|para)\s+(.+)/i);
+    if(recipeSearch) { getRecipe(recipeSearch[2]); }
+    const recipeDetail = lower.match(/^receta de (.+)/i);
+    if(recipeDetail && !recipeSearch) { getRecipeDetail(recipeDetail[1]); }
+    const timerMatch = lower.match(/^(temporizador|cronometro|timer|cuenta atrás|alarma)\s+(?:de\s+)?(\d+)\s*(segundos|segundo|s|minutos|minuto|min|m)?/i);
+    if(timerMatch) {
+      let secs = parseInt(timerMatch[2]);
+      const unit = timerMatch[3] || 's';
+      if(unit.startsWith('m')) secs *= 60;
+      startTimer(secs);
+    }
+    const shortMatch = lower.match(/^(acorta|acortar|shorten)\s+(https?:\/\/[^\s]+)/i);
+    if(shortMatch) { shortenURL(shortMatch[2]); }
+    const noteMatch = lower.match(/^(nota|apunta|guarda|recuérdame que)\s+(.+)/i);
+    if(noteMatch) { addNote(noteMatch[2]); }
+    if(/^ver notas|mis notas|lista de notas/i.test(lower)) { listNotes(); }
+    if(/^borrar notas|eliminar notas/i.test(lower)) { clearNotes(); }
+    const shopMatch = lower.match(/^(comprar|agrega|añade|necesito)\s+(.+)/i);
+    if(shopMatch) { shoppingAdd(shopMatch[2]); }
+    if(/^ver lista|lista de compras|mi lista/i.test(lower)) { shoppingList(); }
+    const shopDoneMatch = lower.match(/^(compré|ya compré|comprado)\s+(.+)/i);
+    if(shopDoneMatch) { shoppingDone(shopDoneMatch[2]); }
+    if(/^borrar lista|eliminar lista|vaciar lista/i.test(lower)) { shoppingClear(); }
     // Detectar recordatorios
     const remindMatch = text.toLowerCase().match(/recuerda(?:me)?\s+(.+?)\s+en\s+(\d+)\s*(segundo|minuto|min|hora|s|m|h)/i);
     if(remindMatch) {
@@ -1397,19 +1446,270 @@ function enhancePrompt(prompt) {
 }
 function convertFile(content, fromType, toType, fileName) {
   addLog('Convirtiendo ' + fromType + ' → ' + toType);
+  // Extraer nombre base sin extensión
+  const baseName = fileName.replace(/\.[^.]+$/, '') || 'documento';
   if(toType === 'pdf') {
     generatePDF('Convertido desde ' + fileName.toUpperCase() + '\n\nFuente: ' + fromType.toUpperCase() + '\n\n' + content);
   } else if(toType === 'word') {
     generateWord('Convertido desde ' + fileName.toUpperCase() + '\n\nFuente: ' + fromType.toUpperCase() + '\n\n' + content);
   } else if(toType === 'excel') {
-    // Intentar parsear como tabla
     if(content.includes('|') || content.includes('\t') || content.includes(',')) {
       generateExcelFromContent(content);
     } else {
       generateExcelFixed('Convertido desde ' + fileName.toUpperCase() + '\n\nFuente: ' + fromType.toUpperCase() + '\n\n' + content);
     }
+  } else if(toType === 'txt' || toType === 'text') {
+    const blob = new Blob(['\ufeff' + content], {type:'text/plain;charset=utf-8'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href=url; a.download = baseName + '.txt';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(function(){URL.revokeObjectURL(url);},3000);
+    showDocCard('word', content, url, baseName + '.txt');
+  } else if(toType === 'csv') {
+    let csv = 'J.A.R.V.I.S.,Convertido desde ' + fileName.toUpperCase() + '\n';
+    csv += 'Fuente,' + fromType.toUpperCase() + '\n\n';
+    csv += content.split('\n').filter(function(l){return l.trim();}).map(function(l){return '"' + l.replace(/"/g,'""') + '"';}).join('\n');
+    const blob = new Blob(['\ufeff' + csv], {type:'text/csv;charset=utf-8'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href=url; a.download = baseName + '.csv';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(function(){URL.revokeObjectURL(url);},3000);
+    showDocCard('excel', csv, url, baseName + '.csv');
+  } else if(toType === 'html') {
+    const htmlContent = '<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>' + baseName + '</title></head><body style="font-family:Arial;max-width:800px;margin:40px auto;line-height:1.6"><h1>' + baseName + '</h1><hr><pre style="white-space:pre-wrap;font-size:14px">' + content.replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</pre></body></html>';
+    const blob = new Blob([htmlContent], {type:'text/html;charset=utf-8'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href=url; a.download = baseName + '.html';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(function(){URL.revokeObjectURL(url);},3000);
+    showDocCard('word', htmlContent, url, baseName + '.html');
+  } else if(toType === 'json') {
+    try { JSON.parse(content); } catch(e) {
+      addMessage('ai','⚠️ El contenido no es JSON válido. Se guardará como texto.');
+    }
+    const blob = new Blob([content], {type:'application/json;charset=utf-8'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href=url; a.download = baseName + '.json';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(function(){URL.revokeObjectURL(url);},3000);
+    showDocCard('word', content, url, baseName + '.json');
+  } else {
+    addMessage('ai','⚠️ Formato "' + toType + '" no soportado. Formatos disponibles: pdf, word, excel, txt, csv, html, json.');
   }
 }
+/* =========================================================
+   UTILIDADES: Noticias, Wikipedia, Divisas, Contraseñas,
+   Calculadora, Temporizador, Listas, Notas, Chistes, Trivia, Recetas
+   ========================================================= */
+function getNews() {
+  addMessage('ai','📰 **Noticias de hoy**\n⏳ Consultando fuentes...');
+  fetch('https://api.currentsapi.services/v1/latest-news?language=es&apiKey=3I-2CP7WuCTKvkAFWFT8fzSceoGjMFEmVh44G_-0u5YmNJYj')
+    .then(function(r){return r.json()})
+    .then(function(d){
+      if(d.news && d.news.length) {
+        let html = '📰 **Últimas noticias**\n\n';
+        for(let i=0;i<Math.min(5,d.news.length);i++){
+          html += '**'+(i+1)+'.** ' + d.news[i].title + '\n';
+          if(d.news[i].description) html += '   ' + d.news[i].description.substring(0,120) + '...\n';
+        }
+        addMessage('ai', html);
+        addLog('Noticias obtenidas');
+      } else addMessage('ai','❌ No se pudieron obtener noticias. Reintenta más tarde.');
+    })
+    .catch(function(e){ addMessage('ai','❌ Error: '+e.message); });
+}
+function searchWiki(term) {
+  addMessage('ai','📖 **Wikipedia:** ' + term + '\n⏳ Buscando...');
+  fetch('https://es.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(term))
+    .then(function(r){return r.json()})
+    .then(function(d){
+      if(d.extract) addMessage('ai','📖 **' + d.title + '**\n' + d.extract.substring(0,1500) + '\n\n🔗 ' + d.content_urls.desktop.page);
+      else addMessage('ai','❌ No se encontró "' + term + '" en Wikipedia.');
+    })
+    .catch(function(){ addMessage('ai','❌ Error buscando en Wikipedia.'); });
+}
+function getExchange(amount, from, to) {
+  addMessage('ai','💱 **' + amount + ' ' + from.toUpperCase() + ' → ' + to.toUpperCase() + '**\n⏳ Consultando tipo de cambio...');
+  fetch('https://api.frankfurter.app/latest?amount=' + amount + '&from=' + from.toUpperCase() + '&to=' + to.toUpperCase())
+    .then(function(r){return r.json()})
+    .then(function(d){
+      if(d.rates) {
+        const rate = d.rates[to.toUpperCase()];
+        addMessage('ai','💱 **' + amount + ' ' + from.toUpperCase() + '** = **' + rate.toFixed(2) + ' ' + to.toUpperCase() + '**\n📅 Tipo de cambio: ' + d.date);
+        addLog('Divisa convertida');
+      } else addMessage('ai','❌ Moneda no válida. Usa códigos como USD, EUR, MXN, BRL.');
+    })
+    .catch(function(){ addMessage('ai','❌ Error consultando tipo de cambio.'); });
+}
+function generatePassword() {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+-=[]{}|;:,.<>?';
+  let pwd = '';
+  for(let i=0;i<18;i++) pwd += chars.charAt(Math.floor(Math.random()*chars.length));
+  navigator.clipboard.writeText(pwd);
+  addMessage('ai','🔑 **Contraseña generada:** `' + pwd + '`\n📋 _Copiada al portapapeles._');
+  addLog('Contraseña generada');
+}
+function safeEval(expr) {
+  try {
+    const sanitized = expr.replace(/[^0-9+\-*/.()%\s]/g, '');
+    if(!sanitized) { addMessage('ai','❌ Expresión inválida.'); return; }
+    const result = Function('"use strict"; return (' + sanitized + ')')();
+    addMessage('ai','🧮 **Calculadora:**\n`' + expr + '`\n**= ' + result + '**');
+    addLog('Cálculo: ' + expr + ' = ' + result);
+  } catch(e) { addMessage('ai','❌ Error: ' + e.message); }
+}
+function pickRandom(options) {
+  const arr = options.split(',').map(function(s){return s.trim();}).filter(function(s){return s;});
+  if(arr.length<2) { addMessage('ai','❌ Dame opciones separadas por coma. Ej: "elige entre pizza, tacos, sushi"'); return; }
+  const pick = arr[Math.floor(Math.random()*arr.length)];
+  addMessage('ai','🎲 **Elijo:** **' + pick + '**\n_(entre ' + arr.join(', ') + ')_');
+  addLog('Sorteo: ' + pick);
+}
+function colorConverter(value) {
+  let r, g, b;
+  if(value.startsWith('#')) {
+    const hex = value.replace('#','');
+    r=parseInt(hex.substring(0,2),16); g=parseInt(hex.substring(2,4),16); b=parseInt(hex.substring(4,6),16);
+  } else if(value.startsWith('rgb')) {
+    const m = value.match(/(\d+)/g);
+    if(m && m.length>=3) { r=+m[0]; g=+m[1]; b=+m[2]; }
+  } else { addMessage('ai','❌ Formato no reconocido. Usa #hex o rgb(r,g,b)'); return; }
+  if(isNaN(r)) { addMessage('ai','❌ Color inválido.'); return; }
+  const hsl = rgbToHsl(r,g,b);
+  const hex = '#' + [r,g,b].map(function(x){return x.toString(16).padStart(2,'0');}).join('');
+  addMessage('ai','🎨 **Conversión de color**\nHEX: `' + hex + '`\nRGB: `rgb(' + r + ', ' + g + ', ' + b + ')`\nHSL: `hsl(' + Math.round(hsl[0]) + ', ' + Math.round(hsl[1]) + '%, ' + Math.round(hsl[2]) + '%)`');
+}
+function rgbToHsl(r,g,b) { r/=255; g/=255; b/=255; const max=Math.max(r,g,b), min=Math.min(r,g,b); let h,s,l=(max+min)/2; if(max===min) { h=s=0; } else { const d=max-min; s=l>0.5?d/(2-max-min):d/(max+min); switch(max){ case r: h=((g-b)/d+(g<b?6:0))/6; break; case g: h=((b-r)/d+2)/6; break; case b: h=((r-g)/d+4)/6; break; } } return [h*360, s*100, l*100]; }
+function getJoke() {
+  fetch('https://v2.jokeapi.dev/joke/Any?lang=es&safe-mode')
+    .then(function(r){return r.json()})
+    .then(function(d){
+      if(d.error) { addMessage('ai','❌ No encontré chiste :('); return; }
+      const joke = d.joke || (d.setup + '\n\n🤣 **' + d.delivery + '**');
+      addMessage('ai','😂 **Chiste:**\n' + joke);
+    })
+    .catch(function(){ addMessage('ai','❌ Error obteniendo chiste.'); });
+}
+function getTrivia() {
+  fetch('https://opentdb.com/api.php?amount=1&type=multiple&lang=es')
+    .then(function(r){return r.json()})
+    .then(function(d){
+      if(d.results && d.results[0]) {
+        const q = d.results[0];
+        const answers = [q.correct_answer, ...q.incorrect_answers].sort(function(){return Math.random()-0.5;});
+        addMessage('ai','❓ **Trivia — ' + q.category + '** (' + q.difficulty + ')\n\n**' + q.question + '**\n\n' + answers.map(function(a,i){return (i+1)+'. '+a;}).join('\n') + '\n\n_¿Sabes la respuesta?_');
+        // Guardar respuesta correcta
+        window._lastTrivia = q.correct_answer;
+        addLog('Trivia: ' + q.category);
+      }
+    })
+    .catch(function(){ addMessage('ai','❌ Error obteniendo trivia.'); });
+}
+function getRecipe(ingredient) {
+  addMessage('ai','🍳 **Receta con:** ' + ingredient + '\n⏳ Buscando...');
+  fetch('https://www.themealdb.com/api/json/v1/1/filter.php?i=' + encodeURIComponent(ingredient))
+    .then(function(r){return r.json()})
+    .then(function(d){
+      if(d.meals && d.meals.length) {
+        const meals = d.meals.slice(0,5);
+        let html = '🍳 **Recetas con ' + ingredient + '**\n\n';
+        meals.forEach(function(m,i){ html += (i+1)+'. **' + m.strMeal + '**\n'; });
+        html += '\n_Di "receta de [nombre]" para ver los detalles._';
+        addMessage('ai', html);
+      } else addMessage('ai','❌ No encontré recetas con "' + ingredient + '".');
+    })
+    .catch(function(){ addMessage('ai','❌ Error buscando recetas.'); });
+}
+function getRecipeDetail(name) {
+  addMessage('ai','🍳 **' + name + '**\n⏳ Cargando receta...');
+  fetch('https://www.themealdb.com/api/json/v1/1/search.php?s=' + encodeURIComponent(name))
+    .then(function(r){return r.json()})
+    .then(function(d){
+      if(d.meals && d.meals[0]) {
+        const m = d.meals[0];
+        let ing = '';
+        for(let i=1;i<=20;i++) { if(m['strIngredient'+i]) ing += '\n• ' + m['strMeasure'+i] + ' ' + m['strIngredient'+i]; }
+        addMessage('ai','🍳 **' + m.strMeal + '** (' + m.strArea + ')\n\n📝 **Ingredientes:**' + ing + '\n\n👨‍🍳 **Instrucciones:**\n' + m.strInstructions.substring(0,1500) + '\n\n🔗 ' + m.strSource);
+      } else addMessage('ai','❌ No encontré la receta "' + name + '".');
+    })
+    .catch(function(){ addMessage('ai','❌ Error.'); });
+}
+// Timer (temporizador visual)
+let timerInterval = null;
+function startTimer(seconds) {
+  if(timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+  const end = Date.now() + seconds * 1000;
+  addMessage('ai','⏱️ **Temporizador: ' + seconds + 's**\n_Empezando cuenta regresiva..._');
+  timerInterval = setInterval(function(){
+    const remaining = Math.max(0, Math.round((end - Date.now()) / 1000));
+    const el = document.getElementById('timer-display');
+    if(el) el.textContent = '⏱️ ' + remaining + 's';
+    if(remaining <= 0) {
+      clearInterval(timerInterval); timerInterval = null;
+      addMessage('ai','⏰ **¡Tiempo cumplido!**');
+      playSound('receive');
+    }
+  }, 200);
+  // Mostrar timer visual
+  const msgs = document.getElementById('messages');
+  const div = document.createElement('div'); div.className = 'msg ai';
+  div.innerHTML = '<div class="avatar ai">AI</div><div class="msg-inner"><div class="msg-label">J.A.R.V.I.S</div><div class="bubble ai"><span id="timer-display" style="font-size:18px;font-family:Share Tech Mono,monospace;">⏱️ ' + seconds + 's</span></div></div>';
+  msgs.appendChild(div); msgs.scrollTop = msgs.scrollHeight;
+}
+// URL Shortener (is.gd)
+function shortenURL(url) {
+  fetch('https://is.gd/create.php?format=json&url=' + encodeURIComponent(url))
+    .then(function(r){return r.json()})
+    .then(function(d){
+      if(d.shorturl) { navigator.clipboard.writeText(d.shorturl); addMessage('ai','🔗 **URL acortada:**\n' + d.shorturl + '\n📋 _Copiado al portapapeles._'); }
+      else addMessage('ai','❌ URL inválida.');
+    })
+    .catch(function(){ addMessage('ai','❌ Error acortando URL.'); });
+}
+// Notas rápidas (localStorage)
+function addNote(text) {
+  let notes = JSON.parse(localStorage.getItem('jarvis_notes') || '[]');
+  notes.push({text: text, date: new Date().toLocaleString('es-MX')});
+  localStorage.setItem('jarvis_notes', JSON.stringify(notes.slice(-20)));
+  addMessage('ai','📌 **Nota guardada:**\n_' + text.substring(0,200) + '_\n\n_Di "ver notas" para ver todas._');
+}
+function listNotes() {
+  const notes = JSON.parse(localStorage.getItem('jarvis_notes') || '[]');
+  if(!notes.length) { addMessage('ai','📌 No tienes notas guardadas.'); return; }
+  let html = '📌 **Notas guardadas**\n\n';
+  notes.forEach(function(n,i){ html += '**'+(i+1)+'.** ' + n.text.substring(0,150) + '\n_(' + n.date + ')_\n\n'; });
+  addMessage('ai', html);
+}
+function clearNotes() { localStorage.removeItem('jarvis_notes'); addMessage('ai','📌 Notas eliminadas.'); }
+// Lista de compras (localStorage)
+function shoppingAdd(item) {
+  let list = JSON.parse(localStorage.getItem('jarvis_shopping') || '[]');
+  list.push({item: item, done: false});
+  localStorage.setItem('jarvis_shopping', JSON.stringify(list));
+  addMessage('ai','🛒 **Añadido:** ' + item + '\n_Di "ver lista" para ver todo._');
+}
+function shoppingList() {
+  const list = JSON.parse(localStorage.getItem('jarvis_shopping') || '[]');
+  if(!list.length) { addMessage('ai','🛒 La lista está vacía.'); return; }
+  const pending = list.filter(function(x){return !x.done;});
+  const done = list.filter(function(x){return x.done;});
+  let html = '🛒 **Lista de compras**\n\n';
+  if(pending.length) { html += '**Pendientes:**\n'; pending.forEach(function(x,i){ html += (i+1)+'. ☐ ' + x.item + '\n'; }); html += '\n'; }
+  if(done.length) { html += '**Comprados:**\n'; done.forEach(function(x,i){ html += (i+1)+'. ☑ ' + x.item + '\n'; }); }
+  html += '\n_Di "comprar [item]" o "compré [item]" para marcar._';
+  addMessage('ai', html);
+}
+function shoppingDone(item) {
+  let list = JSON.parse(localStorage.getItem('jarvis_shopping') || '[]');
+  let found = false;
+  list = list.map(function(x){
+    if(x.item.toLowerCase() === item.toLowerCase() && !x.done) { found = true; return {item: x.item, done: true}; }
+    return x;
+  });
+  if(found) { localStorage.setItem('jarvis_shopping', JSON.stringify(list)); addMessage('ai','✅ **Comprado:** ' + item); }
+  else addMessage('ai','❌ No encontré "' + item + '" en la lista pendiente.');
+}
+function shoppingClear() { localStorage.removeItem('jarvis_shopping'); addMessage('ai','🛒 Lista de compras eliminada.'); }
 const uiCommands = {
   'abrir sidebar': function(){ openSidebar(); },
   'cerrar sidebar': function(){ closeSidebar(); },
@@ -1426,9 +1726,21 @@ const uiCommands = {
   'modo analisis': function(){ setMode('analisis',document.querySelectorAll('.sys-btn')[1]); },
   'modo creativo': function(){ setMode('creativo',document.querySelectorAll('.sys-btn')[2]); },
   'modo programacion': function(){ setMode('codigo',document.querySelectorAll('.sys-btn')[3]); },
-  'ayuda': function(){ addMessage('ai','**Comandos de voz disponibles:**\n• "Abrir/Cerrar sidebar"\n• "Cambiar tema" / "Tema cyberpunk/matrix/fire/clásico"\n• "Limpiar chat" / "Nueva conversación"\n• "Modo general/análisis/creativo/programación"\n• "Dashboard"\n• "Ayuda"'); },
+  'ayuda': function(){ addMessage('ai','**Comandos de voz disponibles:**\n• "Abrir/Cerrar sidebar"\n• "Cambiar tema" / "Tema cyberpunk/matrix/fire/clásico"\n• "Limpiar chat" / "Nueva conversación"\n• "Modo general/análisis/creativo/programación"\n• "Dashboard" / "Tablero"\n• "Noticias"\n• "Chiste" / "Trivia"\n• "Nota [texto]" / "Ver notas"\n• "Comprar [item]" / "Ver lista"\n• "Temporizador N segundos"\n• "Generar contraseña"\n• "Ayuda"'); },
   'dashboard': function(){ toggleDashboard(); },
-  'tablero': function(){ toggleDashboard(); }
+  'tablero': function(){ toggleDashboard(); },
+  'noticias': function(){ getNews(); },
+  'chiste': function(){ getJoke(); },
+  'dime un chiste': function(){ getJoke(); },
+  'trivia': function(){ getTrivia(); },
+  'dime una trivia': function(){ getTrivia(); },
+  'generar contraseña': function(){ generatePassword(); },
+  'genera contraseña': function(){ generatePassword(); },
+  'ver notas': function(){ listNotes(); },
+  'mis notas': function(){ listNotes(); },
+  'ver lista': function(){ shoppingList(); },
+  'lista de compras': function(){ shoppingList(); },
+  'mi lista': function(){ shoppingList(); }
 };
 function processVoiceCommand(text) {
   const lower = text.toLowerCase().trim();

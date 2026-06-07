@@ -1657,6 +1657,8 @@ let hologramCanvas, hCtx, hAnimId;
 let mouseX = 0.5, mouseY = 0.5;
 let hParticles = [];
 let hDataStream = [];
+let holoIntensity = 0; // 0-1, spikes on state change for burst effect
+let holoLastState = 'idle';
 let holoState = 'idle'; // 'idle' | 'processing' | 'speaking'
 let holoStateTimer = null;
 
@@ -1722,14 +1724,52 @@ function drawHologram() {
 
   const state = holoState;
   const now = Date.now();
-  const speedMul = state === 'processing' ? 3 : state === 'speaking' ? 2 : 1;
-  const ringR = Math.min(w, h) * 0.2;
+  // Decaimiento de intensidad (burst effect)
+  holoIntensity = Math.max(0, holoIntensity - 0.02);
+
+  // Colores por estado (mucho más notorios)
+  let activeColor = primary;
+  if(state === 'processing') activeColor = '#ff8800';
+  else if(state === 'speaking') activeColor = '#00ffaa';
+
+  // Mezcla entre color base y color activo según intensidad
+  const mixColor = state === 'idle' ? primary : (
+    holoIntensity > 0 ? activeColor : (
+      state === 'processing' ? '#ff8800' : '#00ffaa'
+    )
+  );
+
+  const speedMul = state === 'processing' ? 5 : state === 'speaking' ? 3 : 1;
+  const alphaMul = state === 'processing' ? 3 : state === 'speaking' ? 2.2 : 1;
+  const ringRbase = Math.min(w, h) * 0.2;
+  // Pulso de respiración al hablar
+  const breathe = state === 'speaking' ? 1 + Math.sin(now / 400) * 0.12 : 1;
+  const ringR = ringRbase * breathe;
+
   const flicker = 0.92 + Math.sin(now * 0.013) * 0.08;
 
-  // ---- HEXAGONAL GRID BASE ----
+  // BURST: onda expansiva al cambiar de estado
+  if(holoIntensity > 0.01) {
+    const burstR = ringR * (1 + (1 - holoIntensity) * 2);
+    hCtx.beginPath();
+    hCtx.arc(cx, cy, burstR, 0, Math.PI * 2);
+    hCtx.strokeStyle = mixColor;
+    hCtx.globalAlpha = holoIntensity * 0.6 * flicker;
+    hCtx.lineWidth = 2 * holoIntensity;
+    hCtx.stroke();
+    // Segunda onda
+    const burstR2 = ringR * (1.1 + (1 - holoIntensity) * 2.5);
+    hCtx.beginPath();
+    hCtx.arc(cx, cy, burstR2, 0, Math.PI * 2);
+    hCtx.strokeStyle = mixColor;
+    hCtx.globalAlpha = holoIntensity * 0.3 * flicker;
+    hCtx.lineWidth = 1;
+    hCtx.stroke();
+    hCtx.globalAlpha = 1;
+  }
   hCtx.save();
-  hCtx.globalAlpha = 0.06 * flicker;
-  hCtx.strokeStyle = primary;
+  hCtx.globalAlpha = (0.06 + (state !== 'idle' ? 0.04 : 0)) * flicker;
+  hCtx.strokeStyle = mixColor;
   hCtx.lineWidth = 0.5;
   const gridR = ringR * 1.6;
   for(let ring = 1; ring <= 4; ring++) {
@@ -1754,11 +1794,11 @@ function drawHologram() {
   }
   hCtx.restore();
 
-  // ---- ANILLOS 3D ----
+  // ---- ANILLOS 3D (más rápidos y brillantes al procesar/hablar) ----
   const tilt = 0.3;
   for(let r = 0; r < 3; r++) {
     const rotOffset = r * Math.PI * 2 / 3;
-    const rot = now / (4000 / speedMul) + rotOffset;
+    const rot = now / (2500 / speedMul) + rotOffset;
     hCtx.beginPath();
     for(let i = 0; i <= 40; i++) {
       const a = (i / 40) * Math.PI * 2;
@@ -1766,33 +1806,34 @@ function drawHologram() {
       const py = cy + Math.sin(a + rot) * ringR * tilt * (r * 0.3 + 0.5);
       i === 0 ? hCtx.moveTo(px, py) : hCtx.lineTo(px, py);
     }
-    hCtx.strokeStyle = primary;
-    hCtx.globalAlpha = (0.08 + r * 0.04) * flicker * (state !== 'idle' ? 1.5 : 1);
-    hCtx.lineWidth = 1 - r * 0.2;
+    hCtx.strokeStyle = mixColor;
+    hCtx.globalAlpha = (0.08 + r * 0.04) * alphaMul * flicker;
+    hCtx.lineWidth = (1 - r * 0.2) * (state !== 'idle' ? 1.5 : 1);
     hCtx.stroke();
   }
 
   // ---- ANILLO CENTRAL PRINCIPAL ----
+  const ringWidth = state === 'processing' ? 4 : state === 'speaking' ? 3 : 2;
   hCtx.beginPath();
   hCtx.arc(cx, cy, ringR, 0, Math.PI * 2);
-  hCtx.strokeStyle = primary;
-  hCtx.globalAlpha = (0.2 + Math.sin(now / 2000) * 0.08) * flicker * (state !== 'idle' ? 1.5 : 1);
-  hCtx.lineWidth = state === 'processing' ? 3 : 2;
+  hCtx.strokeStyle = mixColor;
+  hCtx.globalAlpha = (0.25 + Math.sin(now / 1500) * 0.1) * alphaMul * flicker;
+  hCtx.lineWidth = ringWidth;
   hCtx.stroke();
 
   // ---- ANILLO ROTATORIO ELÍPTICO ----
-  const rot2 = now / (2500 / speedMul);
+  const rot2 = now / (1800 / speedMul);
   hCtx.beginPath();
   for(let i = 0; i <= 40; i++) {
     const a = (i / 40) * Math.PI * 2;
-    const px = cx + Math.cos(a + rot2) * ringR * 1.1;
+    const px = cx + Math.cos(a + rot2) * ringR * (state === 'speaking' ? 1.3 : 1.1);
     const py = cy + Math.sin(a + rot2 * 0.7) * ringR * 0.35;
     i === 0 ? hCtx.moveTo(px, py) : hCtx.lineTo(px, py);
   }
-  hCtx.strokeStyle = primary;
-  hCtx.globalAlpha = (0.15 + Math.sin(now / 1500) * 0.05) * flicker * (state === 'processing' ? 2 : 1);
-  hCtx.lineWidth = state === 'processing' ? 2 : 1.5;
-  hCtx.setLineDash(state === 'speaking' ? [3, 6] : [6, 10]);
+  hCtx.strokeStyle = mixColor;
+  hCtx.globalAlpha = (0.2 + Math.sin(now / 1200) * 0.08) * alphaMul * flicker;
+  hCtx.lineWidth = state === 'processing' ? 3 : 2;
+  hCtx.setLineDash(state === 'speaking' ? [3, 5] : state === 'processing' ? [2, 4] : [6, 10]);
   hCtx.stroke();
   hCtx.setLineDash([]);
 
@@ -1800,86 +1841,102 @@ function drawHologram() {
   const particleSpeed = speedMul;
   for(const p of hParticles) {
     p.angle += p.speed * particleSpeed;
-    const x = cx + Math.cos(p.angle) * p.radius;
-    const y = cy + Math.sin(p.angle + p.orbitTilt) * p.radius * 0.4 + Math.sin(p.angle * 2 + p.phase) * 10;
-    const sizeMult = state === 'processing' ? 1.8 : state === 'speaking' ? 1.4 : 1;
+    const radialPulse = state === 'speaking' ? Math.sin(now / 300 + p.angle * 2) * 15 : 0;
+    const x = cx + Math.cos(p.angle) * (p.radius + radialPulse);
+    const y = cy + Math.sin(p.angle + p.orbitTilt) * (p.radius + radialPulse) * 0.4 + Math.sin(p.angle * 2 + p.phase) * 10;
+    const sizeMult = state === 'processing' ? 2.5 : state === 'speaking' ? 1.8 : 1;
     hCtx.beginPath();
     hCtx.arc(x, y, p.size * sizeMult, 0, Math.PI * 2);
-    const glow = hCtx.createRadialGradient(x, y, 0, x, y, p.size * sizeMult * 3);
-    glow.addColorStop(0, primary);
+    const glow = hCtx.createRadialGradient(x, y, 0, x, y, p.size * sizeMult * 4);
+    glow.addColorStop(0, mixColor);
     glow.addColorStop(1, 'transparent');
     hCtx.fillStyle = glow;
-    hCtx.globalAlpha = p.opacity * flicker * (state !== 'idle' ? 1.6 : 1);
+    hCtx.globalAlpha = p.opacity * alphaMul * flicker;
     hCtx.fill();
   }
   hCtx.globalAlpha = 1;
 
-  // ---- DATA STREAM (dígitos flotantes) ----
-  hCtx.font = '9px Share Tech Mono, monospace';
-  hCtx.fillStyle = primary;
+  // ---- DATA STREAM (dígitos más brillantes al reaccionar) ----
+  hCtx.font = '11px Share Tech Mono, monospace';
+  hCtx.fillStyle = mixColor;
   for(const d of hDataStream) {
     d.y -= d.speed * speedMul;
     if(d.y < -0.05) { d.y = 1.05; d.x = Math.random(); d.char = String.fromCharCode(48 + Math.floor(Math.random() * 74)); }
-    hCtx.globalAlpha = d.opacity * flicker * (0.5 + Math.sin(now / 800 + d.x * 10) * 0.5);
-    hCtx.fillText(d.char, cx + (d.x - 0.5) * ringR * 1.4, d.y * h);
+    hCtx.globalAlpha = d.opacity * alphaMul * flicker * (0.5 + Math.sin(now / 600 + d.x * 10) * 0.5);
+    hCtx.fillText(d.char, cx + (d.x - 0.5) * ringR * 1.5, d.y * h);
   }
   hCtx.globalAlpha = 1;
 
-  // ---- SCAN LINE (barrido horizontal) ----
-  const scanY = ((now % 3000) / 3000) * h;
+  // ---- SCAN LINE (barrido más notorio al reaccionar) ----
+  const scanSpeed = state === 'processing' ? 1500 : state === 'speaking' ? 2000 : 3500;
+  const scanY = ((now % scanSpeed) / scanSpeed) * h;
   hCtx.beginPath();
-  hCtx.moveTo(cx - ringR * 1.2, scanY);
-  hCtx.lineTo(cx + ringR * 1.2, scanY);
-  hCtx.strokeStyle = primary;
-  hCtx.globalAlpha = 0.06 + Math.sin(now / 100) * 0.04;
-  hCtx.lineWidth = 1;
+  hCtx.moveTo(cx - ringR * 1.3, scanY);
+  hCtx.lineTo(cx + ringR * 1.3, scanY);
+  hCtx.strokeStyle = mixColor;
+  hCtx.globalAlpha = (0.08 + Math.sin(now / 80) * 0.06) * alphaMul;
+  hCtx.lineWidth = state !== 'idle' ? 1.5 : 1;
   hCtx.stroke();
+  // Brillo del scan
+  if(state !== 'idle') {
+    const grad2 = hCtx.createLinearGradient(cx - ringR * 1.3, scanY, cx + ringR * 1.3, scanY);
+    grad2.addColorStop(0, 'transparent');
+    grad2.addColorStop(0.3, mixColor);
+    grad2.addColorStop(0.5, '#fff');
+    grad2.addColorStop(0.7, mixColor);
+    grad2.addColorStop(1, 'transparent');
+    hCtx.beginPath();
+    hCtx.moveTo(cx - ringR * 1.3, scanY);
+    hCtx.lineTo(cx + ringR * 1.3, scanY);
+    hCtx.strokeStyle = grad2;
+    hCtx.globalAlpha = 0.3 * alphaMul;
+    hCtx.lineWidth = 3;
+    hCtx.stroke();
+  }
   hCtx.globalAlpha = 1;
 
-  // ---- OJOS HOLOGRÁFICOS (mejorados) ----
+  // ---- OJOS HOLOGRÁFICOS ----
   const eyeOffsetX = 16, eyeOffsetY = -4;
   const eyeR = 8, pupilR = 3;
+  // Color de ojos cambia con estado
+  const eyeColor = state === 'processing' ? '#ff8800' : state === 'speaking' ? '#00ffaa' : primary;
   for(const side of [-1, 1]) {
     const ex = cx + side * eyeOffsetX;
     const ey = cy + eyeOffsetY;
-    // Sombra externa
+    // Brillo externo
     hCtx.beginPath();
-    hCtx.arc(ex, ey, eyeR + 2, 0, Math.PI * 2);
-    hCtx.strokeStyle = primary;
-    hCtx.globalAlpha = 0.08 * flicker;
+    hCtx.arc(ex, ey, eyeR + 3, 0, Math.PI * 2);
+    hCtx.strokeStyle = eyeColor;
+    hCtx.globalAlpha = (0.1 + (state !== 'idle' ? 0.1 : 0)) * flicker;
     hCtx.lineWidth = 1;
     hCtx.stroke();
     // Esclerótica
     hCtx.beginPath();
     hCtx.arc(ex, ey, eyeR, 0, Math.PI * 2);
-    hCtx.fillStyle = primary;
-    hCtx.globalAlpha = 0.25 * flicker;
+    hCtx.fillStyle = eyeColor;
+    hCtx.globalAlpha = (0.3 + (state !== 'idle' ? 0.2 : 0)) * flicker;
     hCtx.fill();
-    hCtx.strokeStyle = primary;
-    hCtx.globalAlpha = 0.4 * flicker;
-    hCtx.lineWidth = 1;
+    hCtx.strokeStyle = eyeColor;
+    hCtx.globalAlpha = (0.5 + (state !== 'idle' ? 0.3 : 0)) * flicker;
+    hCtx.lineWidth = 1.5;
     hCtx.stroke();
     hCtx.globalAlpha = 1;
     // Pupila
     const dx = (mouseX - 0.5) * 4;
     const dy = (mouseY - 0.5) * 4;
-    const pupGlow = hCtx.createRadialGradient(ex + dx, ey + dy, 0, ex + dx, ey + dy, pupilR * 3);
-    pupGlow.addColorStop(0, primary);
-    pupGlow.addColorStop(1, 'transparent');
     hCtx.beginPath();
-    hCtx.arc(ex + dx, ey + dy, pupilR, 0, Math.PI * 2);
-    hCtx.fillStyle = primary;
+    hCtx.arc(ex + dx, ey + dy, pupilR * (state !== 'idle' ? 1.5 : 1), 0, Math.PI * 2);
+    hCtx.fillStyle = '#fff';
     hCtx.globalAlpha = 0.9 * flicker;
     hCtx.fill();
-    hCtx.globalAlpha = 1;
-    // Brillo de pupila
+    // Brillo pupila
     hCtx.beginPath();
-    hCtx.arc(ex + dx - 1, ey + dy - 1, pupilR * 0.3, 0, Math.PI * 2);
+    hCtx.arc(ex + dx - 1.5, ey + dy - 1.5, pupilR * 0.4, 0, Math.PI * 2);
     hCtx.fillStyle = '#fff';
-    hCtx.globalAlpha = 0.6;
+    hCtx.globalAlpha = 0.7;
     hCtx.fill();
     hCtx.globalAlpha = 1;
-    // Párpado (parpadeo ocasional)
+    // Párpado (parpadeo)
     if(Math.sin(now / 3000) > 0.97) {
       hCtx.beginPath();
       hCtx.arc(ex, ey, eyeR, Math.PI, 0);
@@ -1890,25 +1947,25 @@ function drawHologram() {
     }
   }
 
-  // ---- BRILLO CENTRAL PULSANTE ----
-  const pulseAmp = state === 'processing' ? 0.2 : state === 'speaking' ? 0.15 : 0.1;
-  const pulseSpeed = state === 'processing' ? 600 : state === 'speaking' ? 800 : 1200;
-  const pulse = pulseAmp + Math.sin(now / pulseSpeed) * (pulseAmp * 0.5);
-  const grad = hCtx.createRadialGradient(cx, cy, 0, cx, cy, ringR * 0.4);
-  grad.addColorStop(0, primary);
-  grad.addColorStop(0.5, primary);
+  // ---- BRILLO CENTRAL (mucho más intenso al reaccionar) ----
+  const pulseAmp = state === 'processing' ? 0.35 : state === 'speaking' ? 0.25 : 0.12;
+  const pulseSpeed = state === 'processing' ? 400 : state === 'speaking' ? 600 : 1200;
+  const pulse = pulseAmp + Math.sin(now / pulseSpeed) * (pulseAmp * 0.6);
+  const grad = hCtx.createRadialGradient(cx, cy, 0, cx, cy, ringR * 0.5);
+  grad.addColorStop(0, mixColor);
+  grad.addColorStop(0.5, mixColor);
   grad.addColorStop(1, 'transparent');
   hCtx.beginPath();
-  hCtx.arc(cx, cy, ringR * 0.4, 0, Math.PI * 2);
+  hCtx.arc(cx, cy, ringR * 0.5, 0, Math.PI * 2);
   hCtx.fillStyle = grad;
   hCtx.globalAlpha = pulse * flicker;
   hCtx.fill();
   hCtx.globalAlpha = 1;
 
-  // ---- FLICKER GLOBAL (líneas de ruido) ----
+  // ---- FLICKER GLOBAL ----
   if(Math.random() > 0.97) {
-    hCtx.fillStyle = primary;
-    hCtx.globalAlpha = 0.03;
+    hCtx.fillStyle = mixColor;
+    hCtx.globalAlpha = 0.04 * (state !== 'idle' ? 2 : 1);
     hCtx.fillRect(0, Math.random() * h, w, 1 + Math.random() * 3);
     hCtx.globalAlpha = 1;
   }
@@ -1928,6 +1985,8 @@ document.addEventListener('mousemove', function(e) {
 
 // Cambiar estado del holograma
 function setHoloState(s) {
+  if(s !== holoLastState) { holoIntensity = 1; holoLastState = s; }
+  if(s !== holoLastState) { holoIntensity = 1; holoLastState = s; }
   holoState = s;
   if(holoStateTimer) { clearTimeout(holoStateTimer); holoStateTimer = null; }
   if(s === 'speaking') {

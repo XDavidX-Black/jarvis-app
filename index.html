@@ -258,6 +258,13 @@
         <div class="ip-refresh" onclick="detectIP()">[ actualizar ]</div>
       </div>
       <div class="divider"></div>
+      <div class="sidebar-label">IMAGENES</div>
+      <div class="ip-box">
+        <div class="ip-label">MOTOR</div>
+        <div class="ip-value" id="img-engine" style="font-size:10px;">Pollinations (gratuito)</div>
+        <div class="ip-refresh" onclick="promptSetHFToken()">[ configurar Hugging Face ]</div>
+      </div>
+      <div class="divider"></div>
       <div class="sys-btn" onclick="clearChat()" style="color:rgba(255,107,53,0.7)">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg>
         Nueva Sesión
@@ -391,6 +398,8 @@
     <input type="text" id="setup-job" placeholder="Ej: Desarrollador, Estudiante, Empresario..."/>
     <label>¿QUÉ TEMAS TE INTERESAN?</label>
     <input type="text" id="setup-interests" placeholder="Ej: IA, negocios, programación, ciencia..."/>
+    <label>TOKEN HUGGING FACE (opcional, para imágenes)</label>
+    <input type="text" id="setup-hf" placeholder="hf_...  (gratis en huggingface.co/settings/tokens)"/>
     <button class="modal-btn" onclick="saveSetup()">INICIALIZAR J.A.R.V.I.S</button>
   </div>
 </div>
@@ -398,6 +407,7 @@
 <script>
 const SERVER = "https://jarvis-server-production-8be2.up.railway.app";
 let memory = { name:"", job:"", interests:"", sessions:0, facts:[], chatHistory:[] };
+let hfToken = localStorage.getItem('jarvis_hf_token') || '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';
 let mode = 'general';
 let sessionHistory = [];
 let loading = false;
@@ -529,7 +539,9 @@ async function saveSetup() {
   if(!name){ alert('Ingresa tu nombre'); return; }
   const job=document.getElementById('setup-job').value.trim();
   const interests=document.getElementById('setup-interests').value.trim();
+  const hf=document.getElementById('setup-hf').value.trim();
   memory.name=name; memory.job=job; memory.interests=interests;
+  if(hf) { hfToken=hf; localStorage.setItem('jarvis_hf_token', hf); updateImgEngineUI(); }
   await fetch(SERVER+'/memory',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,job,interests})});
   document.getElementById('setup-modal').style.display='none';
   updateUI(); addLog('Perfil: '+name);
@@ -956,26 +968,11 @@ function generateExcelFixed(content) {
 }
 
 /* =========================================================
-   NUEVA FUNCIÓN: GENERAR IMAGEN con Pollinations AI
+   FUNCIÓN: Mostrar imagen en el chat
    ========================================================= */
-function promptGenerateImage() {
-  const prompt = window.prompt('¿Qué imagen quieres generar?\nDescríbela en detalle:', 'Futuristic AI robot in a neon city, cinematic lighting');
-  if(!prompt) return;
-  generateImage(prompt);
-}
-
-async function generateImage(userPrompt, skipUserMsg) {
-  if(!skipUserMsg) {
-    addLog('Generando imagen...');
-    addMessage('user', `🎨 Generar imagen: "${userPrompt}"`);
-  }
+function displayImageInChat(userPrompt, imgUrl, engine) {
   showMessages();
   const msgs = document.getElementById('messages');
-
-  const encoded = encodeURIComponent(userPrompt + ', high quality, detailed');
-  const seed = Math.floor(Math.random() * 99999);
-  const imgUrl = `https://image.pollinations.ai/prompt/${encoded}?width=768&height=512&seed=${seed}&nologo=true`;
-
   const msgDiv = document.createElement('div');
   msgDiv.className = 'msg ai';
   msgDiv.innerHTML = `
@@ -983,28 +980,132 @@ async function generateImage(userPrompt, skipUserMsg) {
     <div class="msg-inner">
       <div class="msg-label">J.A.R.V.I.S</div>
       <div class="bubble ai">
-        🎨 <strong>Imagen solicitada:</strong> ${userPrompt}<br><br>
+        🎨 <strong>Imagen:</strong> ${userPrompt}<br>
+        <small style="color:var(--text-dim);font-size:10px;">Motor: ${engine}</small><br>
         <a href="${imgUrl}" target="_blank">
           <img src="${imgUrl}" alt="${userPrompt}"
             onerror="this.style.display='none'; this.nextElementSibling.style.display='block';"
-            onload="this.style.display='block'; this.nextElementSibling.style.display='none';"
             style="max-width:320px;border-radius:6px;border:1px solid var(--border);cursor:pointer;display:block;margin-top:4px;"
             onclick="openImgModal('${imgUrl}')"/>
           <div style="display:none;padding:12px;border:1px dashed var(--border);border-radius:6px;text-align:center;font-size:12px;">
-            ⏳ La imagen se está generando...<br>
+            ⏳ Generando...<br>
             <a href="${imgUrl}" target="_blank"
-              style="font-family:'Share Tech Mono',monospace;font-size:12px;color:var(--primary);margin-top:8px;display:inline-block;">→ Abrir directamente en Pollinations</a>
+              style="font-family:'Share Tech Mono',monospace;font-size:12px;color:var(--primary);margin-top:8px;display:inline-block;">→ Abrir directamente</a>
           </div>
         </a>
         <br>
         <a href="${imgUrl}" target="_blank"
-          style="font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--primary);text-decoration:none;border:1px solid var(--border);padding:4px 10px;border-radius:4px;display:inline-block;margin-top:6px;">⬇ Abrir / Descargar imagen</a>
+          style="font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--primary);text-decoration:none;border:1px solid var(--border);padding:4px 10px;border-radius:4px;display:inline-block;margin-top:6px;">⬇ Abrir / Descargar</a>
       </div>
     </div>`;
   msgs.appendChild(msgDiv);
   msgs.scrollTop = msgs.scrollHeight;
-  addLog('Imagen generada: ' + imgUrl);
-  showToast('🎨 Imagen lista');
+}
+
+function updateImgEngineUI() {
+  document.getElementById('img-engine').textContent = hfToken ? 'Hugging Face (gratis)' : 'Pollinations (gratuito)';
+}
+
+function promptSetHFToken() {
+  const token = prompt('Ingresa tu token de Hugging Face:\n(https://huggingface.co/settings/tokens - gratis)', hfToken);
+  if(token === null) return;
+  if(token.trim()) {
+    hfToken = token.trim();
+    localStorage.setItem('jarvis_hf_token', hfToken);
+    updateImgEngineUI();
+    addLog('HF Token configurado');
+    showToast('✅ Token Hugging Face guardado');
+  }
+}
+
+/* =========================================================
+   GENERAR IMAGEN: Hugging Face + Pollinations fallback
+   ========================================================= */
+function promptGenerateImage() {
+  const p = window.prompt('¿Qué imagen quieres generar?\nDescríbela en detalle:', 'Robot futurista en ciudad neon, iluminación cinematográfica');
+  if(!p) return;
+  generateImage(p);
+}
+
+async function generateImage(userPrompt, skipUserMsg) {
+  if(!skipUserMsg) {
+    addLog('Generando imagen...');
+    addMessage('user', `🎨 Generar imagen: "${userPrompt}"`);
+  }
+
+  if(hfToken) {
+    await generateImageHF(userPrompt);
+  } else {
+    generateImagePollinations(userPrompt);
+  }
+}
+
+async function generateImageHF(userPrompt) {
+  showMessages();
+  const msgs = document.getElementById('messages');
+  const loadingDiv = document.createElement('div');
+  loadingDiv.className = 'msg ai';
+  loadingDiv.innerHTML = `
+    <div class="avatar ai">AI</div>
+    <div class="msg-inner">
+      <div class="msg-label">J.A.R.V.I.S</div>
+      <div class="bubble ai">
+        🎨 Generando con Hugging Face...<br>
+        <small style="color:var(--text-dim);font-size:11px;">Puede tardar 10-30 segundos</small><br>
+        <div style="height:3px;background:var(--primary-dim);border-radius:2px;overflow:hidden;width:200px;margin-top:8px;">
+          <div style="height:100%;width:0%;background:var(--primary);border-radius:2px;animation:hfProgress 25s linear forwards;"></div>
+        </div>
+      </div>
+    </div>`;
+  msgs.appendChild(loadingDiv);
+  msgs.scrollTop = msgs.scrollHeight;
+
+  const style = document.createElement('style');
+  style.textContent = '@keyframes hfProgress { from{width:0%} to{width:95%} }';
+  document.head.appendChild(style);
+
+  try {
+    const prompt = userPrompt + ', high quality, detailed';
+    const model = 'runwayml/stable-diffusion-v1-5';
+
+    // Try up to 2 times (model might be loading on first try)
+    let res;
+    for(let attempt = 0; attempt < 2; attempt++) {
+      if(attempt > 0) await new Promise(r => setTimeout(r, 3000));
+      res = await fetch('https://api-inference.huggingface.co/models/' + model, {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + hfToken, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ inputs: prompt })
+      });
+      if(res.ok || res.status !== 503) break;
+    }
+
+    if(!res.ok) {
+      const err = await res.text().catch(()=>'');
+      throw new Error(res.status === 503 ? 'El modelo está cargando, intenta de nuevo en unos segundos' : (err.substring(0,100) || 'Error ' + res.status));
+    }
+
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    loadingDiv.remove();
+    displayImageInChat(userPrompt, url, 'Hugging Face');
+
+    addLog('Imagen generada con HF');
+    showToast('🎨 Imagen generada');
+  } catch(e) {
+    loadingDiv.remove();
+    addMessage('ai', `⚠️ **Hugging Face:** ${e.message}\n\nUsando Pollinations como respaldo...`);
+    generateImagePollinations(userPrompt);
+  }
+}
+
+function generateImagePollinations(userPrompt) {
+  const encoded = encodeURIComponent(userPrompt + ', high quality, detailed');
+  const seed = Math.floor(Math.random() * 99999);
+  const imgUrl = `https://image.pollinations.ai/prompt/${encoded}?width=768&height=512&seed=${seed}&nologo=true`;
+  displayImageInChat(userPrompt, imgUrl, 'Pollinations');
+  addLog('Imagen Pollinations: ' + imgUrl);
+  showToast('🎨 Imagen lista (Pollinations)');
 }
 
 /* Image modal */
@@ -1029,6 +1130,7 @@ function showToast(msg) {
 setTimeout(detectIP, 1500);
 
 loadMemory();
+updateImgEngineUI();
 document.getElementById('input').focus();
 </script>
 </body>

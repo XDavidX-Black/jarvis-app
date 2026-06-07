@@ -1359,7 +1359,7 @@ async function getWeather() {
   addLog('Consultando clima...');
   showTyping();
   try {
-    const res = await fetch('https://wttr.in?format=%C|%t|%h|%w|%p&lang=es');
+    const res = await fetch('https://wttr.in?format=%C|%t|%h|%w|%p&lang=es', { headers: { 'User-Agent': 'curl/8.0' } });
     const text = await res.text();
     const parts = text.split('|');
     const condition = parts[0] || '—';

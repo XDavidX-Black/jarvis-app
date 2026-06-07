@@ -1368,13 +1368,14 @@ async function getWeather() {
       const ip = await (await fetch('https://ipapi.co/json/')).json();
       lat = ip.latitude; lon = ip.longitude;
     }
-    // 2) Reverse geocode: nombre real de la ciudad (español)
+    // 2) Reverse geocode: nombre real de la ciudad (OpenStreetMap Nominatim, español)
     let city = '—', region = '', country = '';
     try {
-      const geo = await (await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=es`)).json();
-      city = geo.city || geo.locality || '—';
-      region = geo.principalSubdivision || '';
-      country = geo.countryName || '';
+      const geo = await (await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&accept-language=es`, { headers: { 'User-Agent': 'JARVIS-Weather/1.0' } })).json();
+      const a = geo.address || {};
+      city = a.city || a.town || a.village || a.municipality || '—';
+      region = a.state || '';
+      country = a.country || '';
     } catch(e) { /* fallback */ }
     // 3) Clima desde Open-Meteo
     const w = await (await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&hourly=relativehumidity_2m,precipitation&timezone=auto`)).json();

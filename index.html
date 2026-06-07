@@ -668,7 +668,7 @@ const modePrompts = {
 function buildSystem() {
   let s = modePrompts[mode];
   const now = new Date();
-  s += `\nFecha y hora actual: ${now.toLocaleDateString('es-MX', { weekday:'long', year:'numeric', month:'long', day:'numeric' })} a las ${now.toLocaleTimeString('es-MX', { hour:'2-digit', minute:'2-digit', second:'2-digit', timeZone:'America/Cancun' })} (zona horaria: Quintana Roo, México).`;
+  s += `\nFecha y hora actual: ${now.toLocaleDateString('es-MX', { weekday:'long', year:'numeric', month:'long', day:'numeric' })}. Hora en Cancún: ${now.toLocaleTimeString('es-MX', { hour:'2-digit', minute:'2-digit', timeZone:'America/Cancun', hour12:true })}. Hora en CDMX: ${now.toLocaleTimeString('es-MX', { hour:'2-digit', minute:'2-digit', timeZone:'America/Mexico_City', hour12:true })}.`;
   if(memory.name) s += ` El usuario se llama ${memory.name}.`;
   if(memory.job) s += ` Trabaja como: ${memory.job}.`;
   if(memory.interests) s += ` Intereses: ${memory.interests}.`;

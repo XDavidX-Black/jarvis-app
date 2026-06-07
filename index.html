@@ -189,6 +189,10 @@
   .input-area { flex-shrink:0; padding:14px 24px 18px; border-top:1px solid var(--border); background:var(--panel); backdrop-filter:blur(20px); }
   .input-row { display:flex; gap:10px; align-items:flex-end; }
   .input-wrap { flex:1; position:relative; }
+  .img-badge { display:none; position:absolute; bottom:40px; left:50%; transform:translateX(-50%); background:var(--primary); color:#fff; font-size:11px; padding:3px 10px; border-radius:12px; white-space:nowrap; cursor:pointer; z-index:10; gap:5px; align-items:center; box-shadow:0 2px 8px rgba(0,0,0,0.3); }
+  .img-badge.active { display:inline-flex; }
+  .img-badge-x { margin-left:4px; font-weight:bold; opacity:0.7; }
+  .img-badge-x:hover { opacity:1; }
   .input-wrap::before { content:'//'; position:absolute; left:12px; top:13px; color:var(--primary); font-family:'Share Tech Mono',monospace; font-size:11px; opacity:0.5; pointer-events:none; }
   textarea { width:100%; background:rgba(0,20,40,0.6); border:1px solid var(--border); border-radius:6px; color:var(--text); font-family:'Rajdhani',sans-serif; font-size:var(--font-size); padding:12px 14px 12px 36px; resize:none; outline:none; min-height:48px; max-height:130px; transition:border-color 0.2s,box-shadow 0.2s; line-height:1.5; overflow-y:auto; }
   textarea::placeholder { color:var(--text-dim); }
@@ -510,6 +514,7 @@
           <div class="input-wrap">
             <textarea id="input" placeholder="Escribe, usa el micrófono o sube un archivo..." rows="1"
               onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+            <div id="img-badge" class="img-badge" onclick="removePendingImage()">🖼<span>Imagen lista</span><span class="img-badge-x">✕</span></div>
           </div>
           <button class="send-btn" id="send-btn" onclick="sendMessage()">
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -589,6 +594,7 @@ let isListening = false;
 let jarvisVoice = null;
 // Stores last AI text response for export
 let lastAIResponse = '';
+let pendingImage = null;
 
 const modes = {
   general: { name:'JARVIS', desc:'Asistente inteligente, directo y sofisticado.', label:'MODO: ASISTENTE GENERAL' },
@@ -799,6 +805,11 @@ function showTyping(){
 
 function removeTyping(){ const el=document.getElementById('typing'); if(el) el.remove(); }
 
+function removePendingImage() {
+  pendingImage = null;
+  document.getElementById('img-badge').classList.remove('active');
+}
+
 async function sendMessage(){
   const inp=document.getElementById('input');
   const text=inp.value.trim();
@@ -806,10 +817,23 @@ async function sendMessage(){
   inp.value=''; inp.style.height='auto';
   loading=true; document.getElementById('send-btn').disabled=true;
   synth.cancel(); addMessage('user',text); playSound('send');
-  sessionHistory.push({role:'user',content:text});
+  // Si hay imagen pendiente, enviar como multimodal
+  let msgContent;
+  if(pendingImage) {
+    msgContent = [{type:'text', text}, {type:'image_url', image_url:{url: pendingImage}}];
+    pendingImage = null;
+    document.getElementById('img-badge').classList.remove('active');
+  } else {
+    msgContent = text;
+  }
+  sessionHistory.push({role:'user',content:Array.isArray(msgContent) ? text : msgContent});
   addLog('Procesando...'); showTyping(); setHoloState('processing');
   try{
-    const res=await fetch(SERVER+'/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({system:buildSystem(),messages:sessionHistory,max_tokens:1000})});
+    // Construir mensajes para API (multimodal si hay imagen)
+    const apiMessages = sessionHistory.map(function(m){ return {role:m.role, content:m.content}; });
+    if(Array.isArray(msgContent)) apiMessages[apiMessages.length-1].content = msgContent;
+    const maxTok = Array.isArray(msgContent) ? 2000 : 1000;
+    const res=await fetch(SERVER+'/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({system:buildSystem(),messages:apiMessages,max_tokens:maxTok})});
     const data=await res.json(); removeTyping();
     const reply=data.content?.[0]?.text;
     if(!reply) throw new Error('Sin respuesta');
@@ -907,10 +931,15 @@ async function handleFileUpload(event) {
 
     // --- IMAGE ---
     if(['jpg','jpeg','png','gif','webp'].includes(ext)) {
-      const url = URL.createObjectURL(file);
-      removeTyping();
-      addMessage('ai', `🖼️ Imagen cargada: **${file.name}**\nPuedes pedirme que la describa o que genere algo basado en ella.`, url);
-      addLog('Imagen lista');
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        pendingImage = e.target.result;
+        removeTyping();
+        addMessage('ai', `🖼️ Imagen cargada: **${file.name}**\nAhora escribe un mensaje y J.A.R.V.I.S la analizará.`, pendingImage);
+        addLog('Imagen lista para análisis');
+        document.getElementById('img-badge').classList.add('active');
+      };
+      reader.readAsDataURL(file);
       return;
     }
 

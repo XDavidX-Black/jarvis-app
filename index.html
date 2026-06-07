@@ -470,7 +470,7 @@
         <input type="text" id="search-input" placeholder="Buscar en el chat..." oninput="searchChat(this.value)" onkeydown="if(event.key==='Escape'){closeSearch()}"/>
         <span class="s-count" id="s-count"></span>
       </div>
-      <canvas id="hologram-canvas" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:min(300px,60vw);height:min(300px,60vw);pointer-events:none;z-index:5;display:none;"></canvas>
+      <canvas id="hologram-canvas" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:min(500px,85vw);height:min(500px,85vw);pointer-events:none;z-index:5;display:none;"></canvas>
       <input type="file" id="file-input" accept=".pdf,.txt,.csv,.xlsx,.xls,.jpg,.jpeg,.png,.gif,.webp" onchange="handleFileUpload(event)"/>
 
       <div class="welcome" id="welcome">
@@ -783,6 +783,8 @@ function fmt(t){
     if(inTable) tableHtml += '</table>';
     t = lines.join('\n');
   }
+  // URLs clickeables
+  t = t.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener" style="color:var(--primary);text-decoration:underline;">$1</a>');
   // bold, italic, line breaks
   return t.replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>').replace(/\*(.*?)\*/g,'<em>$1</em>').replace(/\n/g,'<br>');
 }

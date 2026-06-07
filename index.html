@@ -60,6 +60,19 @@
   .status-bar { display:flex; align-items:center; gap:16px; font-family:'Share Tech Mono',monospace; font-size:11px; color:var(--text-dim); }
   .status-dot { width:6px; height:6px; border-radius:50%; background:var(--success); box-shadow:0 0 8px var(--success); animation:pulse 2s infinite; }
   @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+  .msg-actions { display:inline-flex;gap:4px;margin-left:8px;vertical-align:middle; }
+  .msg-action { font-size:11px;cursor:pointer;opacity:0.25;transition:opacity 0.2s;user-select:none;line-height:1; }
+  .msg-action:hover { opacity:1; }
+  /* DASHBOARD */
+  .dashboard { flex:1; padding:20px; overflow-y:auto; }
+  .dash-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; max-width:700px; margin:0 auto; }
+  .dash-card { background:var(--bg-card); border:1px solid var(--border); border-radius:8px; padding:16px; }
+  .dash-full { grid-column:1/3; }
+  .dash-title { font-size:11px; font-family:'Share Tech Mono',monospace; color:var(--primary); letter-spacing:2px; margin-bottom:8px; text-transform:uppercase; }
+  .dash-time { font-size:36px; font-family:'Share Tech Mono',monospace; color:var(--text); letter-spacing:3px; }
+  .dash-date { font-size:12px; color:var(--text-dim); margin-top:2px; }
+  .dash-btn { background:rgba(0,212,255,0.1); color:var(--text); border:1px solid var(--border); border-radius:5px; padding:7px 14px; font-size:11px; cursor:pointer; font-family:inherit; transition:all 0.2s; }
+  .dash-btn:hover { background:rgba(0,212,255,0.2); border-color:var(--primary); }
   .clock { color:var(--primary); }
   .wave { display:none; align-items:center; gap:3px; }
   .wave.active { display:flex; }
@@ -358,6 +371,10 @@
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
         Programación
       </div>
+      <div class="sys-btn" onclick="toggleDashboard()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        Dashboard
+      </div>
       <div class="divider"></div>
       <div class="sidebar-label">PERSONALIDAD</div>
       <div class="persona-box">
@@ -514,6 +531,20 @@
         </div>
       </div>
       <div class="messages" id="messages" style="display:none;"></div>
+      <div class="dashboard" id="dashboard" style="display:none;">
+        <div class="dash-grid">
+          <div class="dash-card" style="grid-column:1/3;"><div class="dash-title">J.A.R.V.I.S</div><div class="dash-time" id="dash-clock">--:--:--</div><div class="dash-date" id="dash-date">cargando...</div></div>
+          <div class="dash-card"><div class="dash-title">🌤 Clima</div><div id="dash-weather" style="font-size:12px;line-height:1.6;">Consultando...</div></div>
+          <div class="dash-card"><div class="dash-title">📊 Estadísticas</div><div id="dash-stats" style="font-size:12px;line-height:1.8;">Sesiones: --<br>Mensajes: --<br>Modo: --</div></div>
+          <div class="dash-card dash-full"><div class="dash-title">⚡ Acciones rápidas</div><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px;">
+            <button class="dash-btn" onclick="generateImage(prompt('¿Qué imagen?',''),false)">🎨 Imagen</button>
+            <button class="dash-btn" onclick="generateQR(prompt('Texto para QR:',''))">📱 QR</button>
+            <button class="dash-btn" onclick="getWeather()">🌤 Clima</button>
+            <button class="dash-btn" onclick="detectIP()">🌐 IP</button>
+            <button class="dash-btn" onclick="clearChat();toggleDashboard()">🗑 Nuevo chat</button>
+          </div></div>
+        </div>
+      </div>
       <div class="input-area">
         <div class="input-row">
           <button class="mic-btn" id="mic-btn" onclick="startListening()">
@@ -711,7 +742,7 @@ function initRecognition() {
   if(!SR) return false;
   recognition=new SR(); recognition.lang='es-MX'; recognition.continuous=false; recognition.interimResults=false;
   recognition.onstart=()=>{ isListening=true; document.getElementById('mic-btn').classList.add('listening'); document.getElementById('mic-status').textContent='🔴 Escuchando...'; };
-  recognition.onresult=(e)=>{ const t=e.results[0][0].transcript; document.getElementById('input').value=t; autoResize(document.getElementById('input')); sendMessage(); };
+  recognition.onresult=(e)=>{ const t=e.results[0][0].transcript; if(processVoiceCommand(t)) return; document.getElementById('input').value=t; autoResize(document.getElementById('input')); sendMessage(); };
   recognition.onend=()=>{ isListening=false; document.getElementById('mic-btn').classList.remove('listening'); document.getElementById('mic-status').textContent='🎤 Clic en micrófono para hablar'; };
   recognition.onerror=(e)=>{ isListening=false; document.getElementById('mic-btn').classList.remove('listening'); document.getElementById('mic-status').textContent='❌ '+e.error; };
   return true;
@@ -818,8 +849,23 @@ function addMessage(role,text,imgUrl){
   const msgs=document.getElementById('messages');
   const div=document.createElement('div'); div.className=`msg ${role}`;
   let imgHTML = imgUrl ? `<img class="msg-img" src="${imgUrl}" alt="imagen generada" onclick="openImgModal('${imgUrl}')"/>` : '';
-  div.innerHTML=`<div class="avatar ${role}">${role==='ai'?'AI':'USR'}</div><div class="msg-inner"><div class="msg-label">${role==='ai'?'J.A.R.V.I.S':'TÚ'}</div><div class="bubble ${role}">${fmt(text)}${imgHTML}</div></div>`;
+  const safeText = text.replace(/`/g,'\\`').replace(/\$/g,'\\$');
+  const actions = role==='ai' ? `<div class="msg-actions"><span class="msg-action" onclick="copyText(\`${safeText.substring(0,500)}\')" title="Copiar">📋</span><span class="msg-action" onclick="translateMsg(this)" title="Traducir">🌐</span></div>` : '';
+  div.innerHTML=`<div class="avatar ${role}">${role==='ai'?'AI':'USR'}</div><div class="msg-inner"><div class="msg-label">${role==='ai'?'J.A.R.V.I.S':'TÚ'}${actions}</div><div class="bubble ${role}">${fmt(text)}${imgHTML}</div></div>`;
   msgs.appendChild(div); msgs.scrollTop=msgs.scrollHeight;
+}
+
+function copyText(t) { navigator.clipboard.writeText(t).then(function(){ showToast('📋 Copiado'); }); }
+
+function translateMsg(el) {
+  const bubble = el.closest('.msg-inner').querySelector('.bubble');
+  const text = bubble.textContent.trim().substring(0, 1000);
+  if(!text) return;
+  el.textContent = '⏳';
+  fetch(SERVER+'/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({system:'Traduce el siguiente texto al español mexicano natural. Responde SOLO con la traducción, nada más.',messages:[{role:'user',content:text}],max_tokens:500})})
+    .then(function(r){ return r.json(); })
+    .then(function(d){ const t=d.content?.[0]?.text; if(t){ bubble.innerHTML = t.replace(/\n/g,'<br>'); el.textContent='🌐'; showToast('✅ Traducido'); } else { el.textContent='🌐'; showToast('❌ Error'); }})
+    .catch(function(){ el.textContent='🌐'; showToast('❌ Error'); });
 }
 
 function fmt(t){
@@ -925,6 +971,11 @@ async function sendMessage(){
       showToast('📄 Contenido mostrado arriba — usa botón GEN para descargar');
     } else if(/imagen|dibuja|dibujo|ilustra|crea\s*una\s*imagen/i.test(lower)) {
       generateImage(text, true);
+    }
+    // Detectar QR
+    if(/(codigo qr|código qr|qr de|genera.*qr|haz.*qr)/i.test(lower)) {
+      const qrText = text.replace(/^(genera|crea|haz|haceme|elabora|produce).*?(?:qr|código qr|codigo qr)\s*(?:de|para|con)?\s*/i, '').trim() || text;
+      generateQR(qrText);
     }
     // Detectar recordatorios
     const remindMatch = text.toLowerCase().match(/recuerda(?:me)?\s+(.+?)\s+en\s+(\d+)\s*(segundo|minuto|min|hora|s|m|h)/i);
@@ -1316,6 +1367,80 @@ function generateExcelFixed(content) {
 }
 
 /* =========================================================
+   QR, IMAGE ENHANCE, VOICE COMMANDS
+   ========================================================= */
+function generateQR(text) {
+  const data = encodeURIComponent(text);
+  const url = 'https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=' + data + '&bgcolor=0a0a1a&color=00d4ff';
+  addMessage('ai', '📱 **Código QR** para: _' + text.substring(0,80) + '_', url);
+  addLog('QR generado');
+}
+function enhancePrompt(prompt) {
+  return fetch(SERVER+'/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({system:'Eres un experto en prompts de IA para generar imágenes. Mejora el siguiente prompt manteniendo la esencia pero haciéndolo más detallado, descriptivo y efectivo para generación de imágenes. Responde SOLO con el prompt mejorado, sin explicaciones ni comillas.',messages:[{role:'user',content:prompt}],max_tokens:300})}).then(function(r){return r.json()}).then(function(d){return d.content?.[0]?.text?.trim()||prompt}).catch(function(){return prompt});
+}
+const uiCommands = {
+  'abrir sidebar': function(){ openSidebar(); },
+  'cerrar sidebar': function(){ closeSidebar(); },
+  'tema cyberpunk': function(){ setTheme('cyberpunk'); },
+  'tema matrix': function(){ setTheme('matrix'); },
+  'tema fire': function(){ setTheme('fire'); },
+  'tema clasico': function(){ setTheme('classic'); },
+  'tema clásico': function(){ setTheme('classic'); },
+  'cambiar tema': function(){ const themes=['cyberpunk','matrix','fire','classic']; setTheme(themes[(themes.indexOf(localStorage.getItem('jarvis_theme')||'cyberpunk')+1)%4]); },
+  'limpiar chat': function(){ clearChat(); },
+  'limpiar conversacion': function(){ clearChat(); },
+  'nueva conversacion': function(){ clearChat(); },
+  'modo general': function(){ setMode('general',document.querySelector('.sys-btn')); },
+  'modo analisis': function(){ setMode('analisis',document.querySelectorAll('.sys-btn')[1]); },
+  'modo creativo': function(){ setMode('creativo',document.querySelectorAll('.sys-btn')[2]); },
+  'modo programacion': function(){ setMode('codigo',document.querySelectorAll('.sys-btn')[3]); },
+  'ayuda': function(){ addMessage('ai','**Comandos de voz disponibles:**\n• "Abrir/Cerrar sidebar"\n• "Cambiar tema" / "Tema cyberpunk/matrix/fire/clásico"\n• "Limpiar chat" / "Nueva conversación"\n• "Modo general/análisis/creativo/programación"\n• "Dashboard"\n• "Ayuda"'); },
+  'dashboard': function(){ toggleDashboard(); },
+  'tablero': function(){ toggleDashboard(); }
+};
+function processVoiceCommand(text) {
+  const lower = text.toLowerCase().trim();
+  for(const key in uiCommands) {
+    if(lower === key || lower.startsWith(key)) { uiCommands[key](); return true; }
+  }
+  return false;
+}
+
+function toggleDashboard() {
+  const dash = document.getElementById('dashboard');
+  const msgs = document.getElementById('messages');
+  const welcome = document.getElementById('welcome');
+  const inputArea = document.querySelector('.input-area');
+  if(dash.style.display !== 'none') {
+    dash.style.display = 'none';
+    msgs.style.display = '';
+    if(inputArea) inputArea.style.display = '';
+    updateDashboard();
+    return;
+  }
+  dash.style.display = '';
+  msgs.style.display = 'none';
+  welcome.style.display = 'none';
+  if(inputArea) inputArea.style.display = 'none';
+  updateDashboard();
+  // Actualizar cada 10s
+  if(window.dashInterval) clearInterval(window.dashInterval);
+  window.dashInterval = setInterval(updateDashboard, 10000);
+}
+
+function updateDashboard() {
+  const clock = document.getElementById('dash-clock');
+  const dateEl = document.getElementById('dash-date');
+  const statsEl = document.getElementById('dash-stats');
+  if(clock) clock.textContent = new Date().toLocaleTimeString('es-MX');
+  if(dateEl) dateEl.textContent = new Date().toLocaleDateString('es-MX', {weekday:'long', year:'numeric', month:'long', day:'numeric'});
+  if(statsEl) {
+    const sessions = JSON.parse(localStorage.getItem('jarvis_sessions') || '[]').length;
+    statsEl.innerHTML = 'Sesiones guardadas: ' + sessions + '<br>Mensajes actuales: ' + sessionHistory.length + '<br>Modo: ' + (document.querySelector('.sys-btn.active')?.textContent.trim() || 'General') + '<br>Voz: ' + (naturalTTS ? 'Natural ✓' : 'Sistema');
+  }
+}
+
+/* =========================================================
    ENTREGA VISUAL DE DOCUMENTOS
    ========================================================= */
 function showDocCard(type, content, downloadUrl, filename) {
@@ -1419,10 +1544,20 @@ async function generateImage(userPrompt, skipUserMsg) {
     addLog('Generando imagen...');
     addMessage('user', `🎨 Generar imagen: "${userPrompt}"`);
   }
+  // Mejorar prompt con IA
+  addMessage('ai','🎨 **Imagen:** ' + userPrompt.replace(/</g,'&lt;') + '\n⏳ _Mejorando prompt con IA..._');
+  const enhanced = await enhancePrompt(userPrompt);
+  const msgs = document.getElementById('messages');
+  const lastMsg = msgs.lastElementChild;
+  if(lastMsg && lastMsg.querySelector('.bubble')) {
+    lastMsg.querySelector('.bubble').innerHTML = '🎨 **Imagen:** ' + userPrompt.replace(/</g,'&lt;') + '<br><small style="color:var(--text-dim);font-size:10px;">Prompt mejorado por IA ✓</small>';
+  }
+  addLog('Prompt original: ' + userPrompt.substring(0,80));
+  addLog('Prompt mejorado: ' + enhanced.substring(0,80));
   // 1) HF directo desde el navegador (si hay token válido)
   if(hfToken && !hfToken.startsWith('hf_krsj')) {
     try {
-      await generateImageHF(userPrompt);
+      await generateImageHF(enhanced);
       return;
     } catch(e) {
       addLog('HF browser falló: '+e.message);
@@ -1434,19 +1569,19 @@ async function generateImage(userPrompt, skipUserMsg) {
     const res = await fetch(SERVER+'/generate-image', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt: userPrompt })
+      body: JSON.stringify({ prompt: enhanced })
     });
     if(res.ok) {
       const blob = await res.blob();
       if(blob.size > 100) {
         const url = URL.createObjectURL(blob);
-        displayImageInChat(userPrompt, url, 'Servidor proxy');
+        displayImageInChat(userPrompt, url, 'Servidor proxy (prompt mejorado)');
         return;
       }
     }
   } catch(e) { /* fall through */ }
   // 3) Pollinations directo (fallback final)
-  generateImagePollinations(userPrompt);
+  generateImagePollinations(enhanced);
 }
 
 async function generateImageHF(userPrompt) {

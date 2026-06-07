@@ -960,7 +960,7 @@ async function sendMessage(){
     // Construir mensajes para API (multimodal si hay imagen)
     const apiMessages = sessionHistory.map(function(m){ return {role:m.role, content:m.content}; });
     if(Array.isArray(msgContent)) apiMessages[apiMessages.length-1].content = msgContent;
-    const maxTok = Array.isArray(msgContent) ? 2000 : 1000;
+    const maxTok = Array.isArray(msgContent) ? 2000 : 500;
     const res=await fetch(SERVER+'/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({system:buildSystem(),messages:apiMessages,max_tokens:maxTok})});
     const data=await res.json(); removeTyping();
     if(!res.ok) throw new Error(data.error || 'Servidor respondió '+res.status);
@@ -1448,7 +1448,7 @@ function generateQR(text) {
   addLog('QR generado');
 }
 function enhancePrompt(prompt) {
-  return fetch(SERVER+'/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({system:'Eres un experto en prompts de IA para generar imágenes. Mejora el siguiente prompt manteniendo la esencia pero haciéndolo más detallado, descriptivo y efectivo para generación de imágenes. Responde SOLO con el prompt mejorado, sin explicaciones ni comillas.',messages:[{role:'user',content:prompt}],max_tokens:300})}).then(function(r){return r.json()}).then(function(d){return d.content?.[0]?.text?.trim()||prompt}).catch(function(){return prompt});
+  return fetch(SERVER+'/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({system:'Eres un experto en prompts de IA para generar imágenes. Mejora el siguiente prompt manteniendo la esencia pero haciéndolo más detallado, descriptivo y efectivo para generación de imágenes. Responde SOLO con el prompt mejorado, sin explicaciones ni comillas.',messages:[{role:'user',content:prompt}],max_tokens:200})}).then(function(r){return r.json()}).then(function(d){return d.content?.[0]?.text?.trim()||prompt}).catch(function(){return prompt});
 }
 function convertFile(content, fromType, toType, fileName) {
   addLog('Convirtiendo ' + fromType + ' → ' + toType);

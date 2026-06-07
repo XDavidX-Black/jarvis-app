@@ -1040,24 +1040,34 @@ async function generateImage(userPrompt, skipUserMsg) {
       await generateImageHF(userPrompt);
       return;
     } catch(e) {
-      addLog('HF falló, usando Pollinations: '+e.message);
+      const errMsg = e.message;
+      addLog('HF falló: '+errMsg);
+      addMessage('ai', '⚠️ **HF no disponible:** '+errMsg+'\n\n_Usando Pollinations como fallback..._');
     }
   }
   generateImagePollinations(userPrompt);
 }
 
 async function generateImageHF(userPrompt) {
-  const model = 'black-forest-labs/FLUX.1-dev';
-  addLog('Generando con HF...');
-  const res = await fetch(`https://api-inference.huggingface.co/models/${model}`, {
-    method: 'POST',
-    headers: { 'Authorization': 'Bearer '+hfToken, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ inputs: userPrompt })
-  });
-  if(!res.ok) throw new Error('HF error: '+res.status);
-  const blob = await res.blob();
-  const url = URL.createObjectURL(blob);
-  displayImageInChat(userPrompt, url, 'Hugging Face (FLUX.1)');
+  const models = ['stabilityai/stable-diffusion-2-1','runwayml/stable-diffusion-v1-5','prompthero/openjourney'];
+  let lastErr = '';
+  for(const model of models) {
+    try {
+      addLog('HF probando: '+model);
+      const res = await fetch('https://api-inference.huggingface.co/models/'+model, {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer '+hfToken, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ inputs: userPrompt })
+      });
+      if(!res.ok) { const t=await res.text(); lastErr = model+': '+res.status+' '+t.substring(0,80); continue; }
+      const blob = await res.blob();
+      if(blob.size < 100) { lastErr = model+': imagen vacía'; continue; }
+      const url = URL.createObjectURL(blob);
+      displayImageInChat(userPrompt, url, 'Hugging Face ('+model.split('/')[1]+')');
+      return;
+    } catch(e) { lastErr = model+': '+e.message; }
+  }
+  throw new Error(lastErr || 'Todos los modelos HF fallaron');
 }
 
 function generateImagePollinations(userPrompt, delayMs) {

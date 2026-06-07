@@ -716,9 +716,15 @@ function promptGeneratePDF() {
 
 function generatePDF(content) {
   try {
-    const { jsPDF } = window.jspdf;
+    // Check if jsPDF loaded
+    if(!window.jspdf && !window.jsPDF) {
+      // Fallback: generate as HTML-based printable PDF via blob
+      generatePDFFallback(content);
+      return;
+    }
+    const jsPDF = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF;
     const doc = new jsPDF();
-    // Header
+    // Header background
     doc.setFillColor(2, 11, 18);
     doc.rect(0, 0, 210, 297, 'F');
     doc.setDrawColor(0, 212, 255);
@@ -740,19 +746,57 @@ function generatePDF(content) {
     doc.setTextColor(200, 230, 244);
     doc.setFontSize(12);
     doc.setFont('helvetica','normal');
-    const lines = doc.splitTextToSize(content, 165);
-    doc.text(lines, 22, 50);
+    const lines = doc.splitTextToSize(content.replace(/\*\*/g,'').replace(/\*/g,''), 165);
+    doc.text(lines, 22, 52);
     // Footer
     doc.setFontSize(8);
     doc.setTextColor(0, 212, 255);
     doc.text('Generado por J.A.R.V.I.S v4.0.0', 105, 288, {align:'center'});
-    doc.save('jarvis-informe.pdf');
+    // Force download via blob
+    const pdfBlob = doc.output('blob');
+    const url = URL.createObjectURL(pdfBlob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'jarvis-informe.pdf';
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 3000);
     addMessage('ai', '✅ **PDF generado** y descargado correctamente. ¡Archivo listo!');
     addLog('PDF generado');
     showToast('📄 PDF descargado');
   } catch(e) {
-    addMessage('ai','❌ Error generando PDF: ' + e.message);
+    console.error(e);
+    generatePDFFallback(content);
   }
+}
+
+function generatePDFFallback(content) {
+  // Fallback: HTML page that auto-prints as PDF
+  const clean = content.replace(/\*\*/g,'').replace(/\*/g,'').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>JARVIS Informe</title>
+  <style>
+    body{font-family:Arial,sans-serif;margin:40px;color:#1a1a2e;background:#fff;}
+    h1{color:#0066cc;font-size:22px;border-bottom:2px solid #0066cc;padding-bottom:8px;}
+    .date{color:#666;font-size:11px;margin-bottom:20px;}
+    .content{font-size:13px;line-height:1.7;white-space:pre-wrap;}
+    .footer{margin-top:40px;font-size:10px;color:#999;border-top:1px solid #ddd;padding-top:8px;}
+    @media print{body{margin:20px}}
+  </style></head><body>
+  <h1>J.A.R.V.I.S — INFORME</h1>
+  <div class="date">Generado: ${new Date().toLocaleString('es-MX')}</div>
+  <div class="content">${clean}</div>
+  <div class="footer">Generado por J.A.R.V.I.S v4.0.0</div>
+  <script>window.onload=function(){window.print();}<\/script>
+  </body></html>`;
+  const blob = new Blob([html], {type:'text/html'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'jarvis-informe.html';
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 3000);
+  addMessage('ai', '✅ **Archivo HTML descargado.** Ábrelo en el navegador y usa **Ctrl+P → Guardar como PDF** para convertirlo.\n_(jsPDF no cargó, pero el contenido está completo)_');
+  addLog('PDF fallback listo');
+  showToast('📄 HTML descargado → imprimir como PDF');
 }
 
 /* =========================================================
@@ -838,7 +882,12 @@ function generateExcel(topic) {
     const ws = XLSX.utils.aoa_to_sheet(data);
     ws['!cols'] = [{wch:30},{wch:30},{wch:20},{wch:15}];
     XLSX.utils.book_append_sheet(wb, ws, 'JARVIS');
-    XLSX.writeFile(wb, 'jarvis-reporte.xlsx');
+    const wbout = XLSX.write(wb, {bookType:'xlsx', type:'array'});
+    const blob = new Blob([wbout], {type:'application/octet-stream'});
+    const xlUrl = URL.createObjectURL(blob);
+    const xlA = document.createElement('a'); xlA.href=xlUrl; xlA.download='jarvis-reporte.xlsx';
+    document.body.appendChild(xlA); xlA.click(); document.body.removeChild(xlA);
+    setTimeout(()=>URL.revokeObjectURL(xlUrl),3000);
     addMessage('ai', '✅ **Excel generado** y descargado correctamente.');
     addLog('Excel generado');
     showToast('📊 Excel descargado');
@@ -856,30 +905,77 @@ function promptGenerateImage() {
   generateImage(prompt);
 }
 
-async function generateImage(prompt) {
+async function generateImage(userPrompt) {
   addLog('Generando imagen...');
-  addMessage('user', `🎨 Generar imagen: "${prompt}"`);
-  showTyping();
-  try {
-    const encoded = encodeURIComponent(prompt);
-    const seed = Math.floor(Math.random() * 99999);
-    const url = `https://image.pollinations.ai/prompt/${encoded}?width=768&height=512&seed=${seed}&nologo=true`;
-    // Pre-load image
-    const img = new Image();
-    img.onload = () => {
-      removeTyping();
-      addMessage('ai', `✅ **Imagen generada** con Pollinations AI\n📝 Prompt: *${prompt}*`, url);
+  addMessage('user', `🎨 Generar imagen: "${userPrompt}"`);
+  showMessages();
+  const msgs = document.getElementById('messages');
+  const placeholder = document.createElement('div');
+  placeholder.className = 'msg ai';
+  placeholder.id = 'img-placeholder';
+  placeholder.innerHTML = `
+    <div class="avatar ai">AI</div>
+    <div class="msg-inner">
+      <div class="msg-label">J.A.R.V.I.S</div>
+      <div class="bubble ai">
+        🎨 Generando imagen con Pollinations AI...<br>
+        <small style="color:var(--text-dim);font-size:11px;">Esto puede tardar 10-20 segundos</small><br><br>
+        <div style="height:3px;background:var(--primary-dim);border-radius:2px;overflow:hidden;width:200px;">
+          <div id="img-bar-fill" style="height:100%;width:0%;background:var(--primary);border-radius:2px;transition:width 18s linear;"></div>
+        </div>
+      </div>
+    </div>`;
+  msgs.appendChild(placeholder);
+  msgs.scrollTop = msgs.scrollHeight;
+  setTimeout(() => { const b = document.getElementById('img-bar-fill'); if(b) b.style.width='95%'; }, 100);
+
+  const encoded = encodeURIComponent(userPrompt);
+  const seed = Math.floor(Math.random() * 99999);
+  const imgUrl = `https://image.pollinations.ai/prompt/${encoded}?width=768&height=512&seed=${seed}&nologo=true&model=flux`;
+
+  const imgEl = new Image();
+  imgEl.crossOrigin = 'anonymous';
+
+  const done = (success) => {
+    const el = document.getElementById('img-placeholder');
+    if(!el) return;
+    if(success) {
+      el.innerHTML = `
+        <div class="avatar ai">AI</div>
+        <div class="msg-inner">
+          <div class="msg-label">J.A.R.V.I.S</div>
+          <div class="bubble ai">
+            ✅ <strong>Imagen generada</strong> con Pollinations AI<br>
+            <em style="font-size:12px;color:var(--text-dim);">📝 ${userPrompt}</em><br><br>
+            <img src="${imgUrl}" alt="imagen" onclick="openImgModal('${imgUrl}')"
+              style="max-width:320px;border-radius:6px;border:1px solid var(--border);cursor:pointer;display:block;margin-top:4px;"/><br>
+            <a href="${imgUrl}" target="_blank"
+              style="font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--primary);text-decoration:none;border:1px solid var(--border);padding:4px 10px;border-radius:4px;display:inline-block;margin-top:6px;">⬇ Abrir / Descargar</a>
+          </div>
+        </div>`;
       addLog('Imagen lista');
-    };
-    img.onerror = () => {
-      removeTyping();
-      addMessage('ai', '❌ Error generando imagen. Intenta con otro prompt.');
-    };
-    img.src = url;
-  } catch(e) {
-    removeTyping();
-    addMessage('ai','❌ Error: ' + e.message);
-  }
+      showToast('🎨 Imagen generada');
+    } else {
+      el.innerHTML = `
+        <div class="avatar ai">AI</div>
+        <div class="msg-inner">
+          <div class="msg-label">J.A.R.V.I.S</div>
+          <div class="bubble ai">
+            ❌ No se pudo cargar la imagen.<br>
+            <a href="${imgUrl}" target="_blank"
+              style="font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--primary);">→ Ver imagen directamente en Pollinations</a>
+          </div>
+        </div>`;
+      addLog('Error imagen');
+    }
+    el.removeAttribute('id');
+    msgs.scrollTop = msgs.scrollHeight;
+  };
+
+  const timer = setTimeout(() => done(false), 45000);
+  imgEl.onload  = () => { clearTimeout(timer); done(true); };
+  imgEl.onerror = () => { clearTimeout(timer); done(false); };
+  imgEl.src = imgUrl;
 }
 
 /* Image modal */

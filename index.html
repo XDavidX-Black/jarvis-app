@@ -26,6 +26,27 @@
     --text-dim: rgba(204,232,244,0.5); --success: #00ff9d;
     --font-size: 15px; --font-size-msg: 15px;
   }
+  [data-theme="matrix"] {
+    --primary: #00ff41; --primary-dim: rgba(0,255,65,0.12);
+    --primary-glow: rgba(0,255,65,0.4); --accent: #ff003c;
+    --bg: #000a00; --panel: rgba(0,20,0,0.85);
+    --border: rgba(0,255,65,0.2); --text: #b3ffb3;
+    --text-dim: rgba(179,255,179,0.5); --success: #00ff41;
+  }
+  [data-theme="fire"] {
+    --primary: #ff4500; --primary-dim: rgba(255,69,0,0.12);
+    --primary-glow: rgba(255,69,0,0.4); --accent: #ffd700;
+    --bg: #0a0400; --panel: rgba(30,10,0,0.85);
+    --border: rgba(255,69,0,0.2); --text: #ffccaa;
+    --text-dim: rgba(255,204,170,0.5); --success: #ffd700;
+  }
+  [data-theme="classic"] {
+    --primary: #2563eb; --primary-dim: rgba(37,99,235,0.08);
+    --primary-glow: rgba(37,99,235,0.2); --accent: #dc2626;
+    --bg: #f1f5f9; --panel: rgba(255,255,255,0.85);
+    --border: rgba(37,99,235,0.15); --text: #1e293b;
+    --text-dim: rgba(30,41,59,0.5); --success: #16a34a;
+  }
   html, body { width:100%; height:100%; background:var(--bg); color:var(--text); font-family:'Rajdhani',sans-serif; overflow:hidden; }
   body::before { content:''; position:fixed; inset:0; background-image:linear-gradient(rgba(0,212,255,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(0,212,255,0.03) 1px,transparent 1px); background-size:40px 40px; pointer-events:none; z-index:0; }
   #app { position:relative; z-index:1; width:100%; height:100%; display:flex; flex-direction:column; }
@@ -150,6 +171,18 @@
   .fs-label { font-size:9px; letter-spacing:2px; color:var(--text-dim); font-family:'Share Tech Mono',monospace; margin-bottom:6px; }
   .fs-box input[type=range] { width:100%; height:3px; -webkit-appearance:none; background:var(--border); border-radius:2px; outline:none; }
   .fs-box input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; width:14px; height:14px; border-radius:50%; background:var(--primary); border:2px solid var(--bg); cursor:pointer; }
+  .theme-btn { display:inline-block; width:22px; height:22px; border-radius:50%; cursor:pointer; border:2px solid var(--border); transition:all 0.2s; margin-right:6px; }
+  .theme-btn:hover { transform:scale(1.15); }
+  .theme-btn.active { border-color:var(--primary); box-shadow:0 0 10px var(--primary-glow); }
+  .theme-row { display:flex; gap:2px; flex-wrap:wrap; padding:0 16px; margin-bottom:8px; }
+
+  /* search */
+  .search-bar { display:none; padding:8px 16px; border-bottom:1px solid var(--border); background:var(--panel); }
+  .search-bar.open { display:flex; gap:6px; align-items:center; }
+  .search-bar input { flex:1; background:rgba(0,20,40,0.6); border:1px solid var(--border); border-radius:4px; color:var(--text); font-family:'Rajdhani',sans-serif; font-size:13px; padding:6px 10px; outline:none; }
+  .search-bar input:focus { border-color:rgba(0,212,255,0.4); }
+  .search-bar .s-count { font-size:10px; color:var(--text-dim); font-family:'Share Tech Mono',monospace; white-space:nowrap; }
+  .msg.highlight { outline:2px solid var(--primary); outline-offset:2px; border-radius:8px; }
 
   /* INPUT */
   .input-area { flex-shrink:0; padding:14px 24px 18px; border-top:1px solid var(--border); background:var(--panel); backdrop-filter:blur(20px); }
@@ -370,11 +403,15 @@
       <div id="session-list" style="max-height:140px;overflow-y:auto;"></div>
       <div class="divider"></div>
       <div class="sidebar-label">APARIENCIA</div>
+      <div class="sidebar-label" style="padding-left:16px;font-size:8px;">TEMA</div>
+      <div class="theme-row" id="theme-row"></div>
       <div class="fs-box">
         <div class="fs-label">TAMAÑO DE LETRA</div>
         <input type="range" id="font-size-slider" min="12" max="22" value="15" step="1" oninput="changeFontSize(this.value)" style="margin-bottom:2px;">
         <div style="text-align:right;font-size:10px;color:var(--text-dim);font-family:'Share Tech Mono',monospace;" id="fs-value">15px</div>
       </div>
+      <div class="sidebar-label" style="padding-left:16px;font-size:8px;">IDIOMA</div>
+      <div class="theme-row" id="lang-row"></div>
       <div class="divider"></div>
       <div class="sys-btn" onclick="exportChat()" style="font-size:11px;">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
@@ -406,6 +443,10 @@
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/></svg>
           GEN EXCEL
         </button>
+        <button class="tool-btn" onclick="toggleSearch()">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          BUSCAR
+        </button>
         <button class="tool-btn" onclick="promptGenerateImage()">
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
           GEN IMAGEN
@@ -416,6 +457,10 @@
         </button>
       </div>
       <div class="drop-zone" id="drop-zone"><span>+ SOLTAR ARCHIVO</span></div>
+      <div class="search-bar" id="search-bar">
+        <input type="text" id="search-input" placeholder="Buscar en el chat..." oninput="searchChat(this.value)" onkeydown="if(event.key==='Escape'){closeSearch()}"/>
+        <span class="s-count" id="s-count"></span>
+      </div>
       <input type="file" id="file-input" accept=".pdf,.txt,.csv,.xlsx,.xls,.jpg,.jpeg,.png,.gif,.webp" onchange="handleFileUpload(event)"/>
 
       <div class="welcome" id="welcome">
@@ -1436,6 +1481,117 @@ function loadFontSize() {
   changeFontSize(val);
 }
 
+/* =========================================================
+   TEMAS DE COLOR
+   ========================================================= */
+const themes = [
+  { id:'cyberpunk', label:'C', color:'#00d4ff', bg:'#020b12', desc:'Cyberpunk' },
+  { id:'matrix', label:'M', color:'#00ff41', bg:'#000a00', desc:'Matrix' },
+  { id:'fire', label:'F', color:'#ff4500', bg:'#0a0400', desc:'Fire' },
+  { id:'classic', label:'Cl', color:'#2563eb', bg:'#f1f5f9', desc:'Classic' }
+];
+
+function initThemes() {
+  const row = document.getElementById('theme-row');
+  const saved = localStorage.getItem('jarvis_theme') || 'cyberpunk';
+  row.innerHTML = themes.map(t => '<div class="theme-btn'+(saved===t.id?' active':'')+'" style="background:'+t.color+'" title="'+t.desc+'" onclick="setTheme(\''+t.id+'\')"></div>').join('');
+  setTheme(saved, true);
+}
+
+function setTheme(id, skipSave) {
+  document.documentElement.setAttribute('data-theme', id === 'cyberpunk' ? '' : id);
+  if(!skipSave) localStorage.setItem('jarvis_theme', id);
+  document.querySelectorAll('#theme-row .theme-btn').forEach(b => b.classList.toggle('active', b.style.background === themes.find(t=>t.id===id)?.color));
+}
+
+/* =========================================================
+   IDIOMA
+   ========================================================= */
+const langs = [
+  { id:'es', label:'ES', desc:'Español' },
+  { id:'en', label:'EN', desc:'English' },
+  { id:'pt', label:'PT', desc:'Português' }
+];
+let currentLang = localStorage.getItem('jarvis_lang') || 'es';
+
+function initLangs() {
+  const row = document.getElementById('lang-row');
+  row.innerHTML = langs.map(l => '<div class="theme-btn'+(currentLang===l.id?' active':'')+'" style="background:var(--primary);font-size:7px;font-family:Share Tech Mono,monospace;display:inline-flex;align-items:center;justify-content:center;color:var(--bg);font-weight:700;" title="'+l.desc+'" onclick="setLang(\''+l.id+'\')">'+l.label+'</div>').join('');
+}
+
+function setLang(id) {
+  currentLang = id;
+  localStorage.setItem('jarvis_lang', id);
+  document.querySelectorAll('#lang-row .theme-btn').forEach(b => b.classList.toggle('active', b.textContent.trim() === langs.find(l=>l.id===id)?.label));
+  showToast('🌐 Idioma: '+langs.find(l=>l.id===id)?.desc);
+  addLog('Idioma: '+id.toUpperCase());
+}
+
+// Inyectar instrucción de idioma en buildSystem
+const origBuildSystem = buildSystem;
+buildSystem = function() {
+  let s = origBuildSystem();
+  if(currentLang === 'en') s += '\nIMPORTANTE: Responde SIEMPRE en inglés.';
+  else if(currentLang === 'pt') s += '\nIMPORTANTE: Responda SEMPRE em português.';
+  return s;
+};
+
+/* =========================================================
+   BÚSQUEDA EN CHAT
+   ========================================================= */
+let searchIndex = 0;
+let searchResults = [];
+
+function toggleSearch() {
+  const bar = document.getElementById('search-bar');
+  bar.classList.toggle('open');
+  if(bar.classList.contains('open')) {
+    document.getElementById('search-input').focus();
+  } else {
+    clearHighlights();
+  }
+}
+
+function closeSearch() {
+  document.getElementById('search-bar').classList.remove('open');
+  clearHighlights();
+}
+
+function searchChat(query) {
+  clearHighlights();
+  const msgs = document.querySelectorAll('#messages .msg .bubble');
+  searchResults = [];
+  if(!query.trim()) { document.getElementById('s-count').textContent = ''; return; }
+  const q = query.toLowerCase();
+  msgs.forEach((m, i) => {
+    if(m.textContent.toLowerCase().includes(q)) {
+      m.closest('.msg').classList.add('highlight');
+      searchResults.push(m.closest('.msg'));
+    }
+  });
+  searchIndex = 0;
+  const count = document.getElementById('s-count');
+  count.textContent = searchResults.length ? searchResults.length+' resultados' : 'Sin resultados';
+  if(searchResults.length) scrollToSearch(0);
+}
+
+function scrollToSearch(idx) {
+  if(!searchResults.length) return;
+  searchIndex = (idx + searchResults.length) % searchResults.length;
+  searchResults[searchIndex].scrollIntoView({behavior:'smooth',block:'center'});
+}
+
+function clearHighlights() {
+  document.querySelectorAll('#messages .msg.highlight').forEach(m => m.classList.remove('highlight'));
+  searchResults = [];
+}
+
+// Atajo Ctrl+F
+document.addEventListener('keydown', function(e) {
+  if(e.ctrlKey && e.key === 'f') { e.preventDefault(); toggleSearch(); }
+  if(e.key === 'Escape') { closeSearch(); }
+});
+
 // Sidebar toggle para móvil
 function toggleSidebar() {
   const sb = document.getElementById('sidebar');
@@ -1470,6 +1626,8 @@ setTimeout(detectIP, 1500);
 
 loadMemory();
 loadFontSize();
+initThemes();
+initLangs();
 renderSessions();
 initDragDrop();
 updateImgEngineUI();

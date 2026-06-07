@@ -368,6 +368,14 @@
           <span>Jarvis habla</span>
           <div class="toggle on" id="tts-toggle" onclick="toggleTTS()"></div>
         </div>
+        <div class="voice-toggle">
+          <span>Sonidos</span>
+          <div class="toggle on" id="sound-toggle" onclick="toggleSound()"></div>
+        </div>
+        <div class="voice-toggle" style="margin-bottom:0;">
+          <span>Holograma</span>
+          <div class="toggle" id="holo-toggle" onclick="toggleHologram()"></div>
+        </div>
 
       </div>
       <div class="divider"></div>
@@ -462,6 +470,7 @@
         <input type="text" id="search-input" placeholder="Buscar en el chat..." oninput="searchChat(this.value)" onkeydown="if(event.key==='Escape'){closeSearch()}"/>
         <span class="s-count" id="s-count"></span>
       </div>
+      <canvas id="hologram-canvas" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:min(300px,60vw);height:min(300px,60vw);pointer-events:none;z-index:5;display:none;"></canvas>
       <input type="file" id="file-input" accept=".pdf,.txt,.csv,.xlsx,.xls,.jpg,.jpeg,.png,.gif,.webp" onchange="handleFileUpload(event)"/>
 
       <div class="welcome" id="welcome">
@@ -794,7 +803,7 @@ async function sendMessage(){
   if(!text||loading) return;
   inp.value=''; inp.style.height='auto';
   loading=true; document.getElementById('send-btn').disabled=true;
-  synth.cancel(); addMessage('user',text);
+  synth.cancel(); addMessage('user',text); playSound('send');
   sessionHistory.push({role:'user',content:text});
   addLog('Procesando...'); showTyping();
   try{
@@ -810,7 +819,7 @@ async function sendMessage(){
     memory.chatHistory=[...memory.chatHistory,histEntry].slice(-20);
     fetch(SERVER+'/memory/fact',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({fact:fact||null,history:histEntry})});
     if(fact) updateUI();
-    addMessage('ai',reply); addLog('Respuesta recibida'); speak(reply);
+    addMessage('ai',reply); addLog('Respuesta recibida'); speak(reply); playSound('receive');
 
     // Detectar si el usuario pidió generar un archivo (solo mostrar preview)
     const lower = text.toLowerCase();
@@ -835,7 +844,7 @@ async function sendMessage(){
     // Guardar sesión en localStorage
     saveSession();
   }catch(err){
-    removeTyping(); addMessage('ai','Error: '+err.message); addLog('Error');
+    removeTyping(); addMessage('ai','Error: '+err.message); addLog('Error'); playSound('error');
   }
   loading=false; document.getElementById('send-btn').disabled=false; inp.focus();
 }
@@ -1483,6 +1492,203 @@ function loadFontSize() {
 }
 
 /* =========================================================
+   SISTEMA DE SONIDOS (Web Audio API)
+   ========================================================= */
+let soundEnabled = true;
+let audioCtx = null;
+
+function initAudio() {
+  if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+}
+
+function toggleSound() {
+  soundEnabled = !soundEnabled;
+  document.getElementById('sound-toggle').classList.toggle('on', soundEnabled);
+  localStorage.setItem('jarvis_sound', soundEnabled ? '1' : '0');
+}
+
+function playSound(type) {
+  if(!soundEnabled) return;
+  try {
+    initAudio();
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    const now = audioCtx.currentTime;
+    if(type === 'startup') {
+      osc.frequency.setValueAtTime(400, now);
+      osc.frequency.linearRampToValueAtTime(800, now + 0.15);
+      osc.frequency.linearRampToValueAtTime(600, now + 0.25);
+      gain.gain.setValueAtTime(0.08, now);
+      gain.gain.linearRampToValueAtTime(0, now + 0.3);
+      osc.start(now); osc.stop(now + 0.3);
+    } else if(type === 'send') {
+      osc.frequency.setValueAtTime(600, now);
+      osc.frequency.linearRampToValueAtTime(900, now + 0.08);
+      gain.gain.setValueAtTime(0.06, now);
+      gain.gain.linearRampToValueAtTime(0, now + 0.12);
+      osc.type = 'sine';
+      osc.start(now); osc.stop(now + 0.12);
+    } else if(type === 'receive') {
+      osc.frequency.setValueAtTime(500, now);
+      osc.frequency.linearRampToValueAtTime(700, now + 0.1);
+      osc.frequency.linearRampToValueAtTime(900, now + 0.2);
+      gain.gain.setValueAtTime(0.07, now);
+      gain.gain.linearRampToValueAtTime(0, now + 0.25);
+      osc.type = 'sine';
+      osc.start(now); osc.stop(now + 0.25);
+    } else if(type === 'error') {
+      osc.frequency.setValueAtTime(400, now);
+      osc.frequency.linearRampToValueAtTime(200, now + 0.2);
+      gain.gain.setValueAtTime(0.08, now);
+      gain.gain.linearRampToValueAtTime(0, now + 0.25);
+      osc.type = 'sawtooth';
+      osc.start(now); osc.stop(now + 0.25);
+    }
+  } catch(e) {}
+}
+
+/* =========================================================
+   HOLOGRAMA ANIMADO + AVATAR
+   ========================================================= */
+let hologramActive = false;
+let hologramCanvas, hCtx, hAnimId;
+let mouseX = 0.5, mouseY = 0.5;
+let hParticles = [];
+
+function toggleHologram() {
+  hologramActive = !hologramActive;
+  const canvas = document.getElementById('hologram-canvas');
+  document.getElementById('holo-toggle').classList.toggle('on', hologramActive);
+  if(hologramActive) {
+    canvas.style.display = 'block';
+    initHologram();
+  } else {
+    canvas.style.display = 'none';
+    if(hAnimId) cancelAnimationFrame(hAnimId);
+  }
+  localStorage.setItem('jarvis_holo', hologramActive ? '1' : '0');
+}
+
+function initHologram() {
+  hologramCanvas = document.getElementById('hologram-canvas');
+  hCtx = hologramCanvas.getContext('2d');
+  function resize() {
+    hologramCanvas.width = hologramCanvas.clientWidth * 2;
+    hologramCanvas.height = hologramCanvas.clientHeight * 2;
+  }
+  resize();
+  window.addEventListener('resize', resize);
+  // Partículas orbitales
+  hParticles = [];
+  for(let i = 0; i < 40; i++) {
+    hParticles.push({
+      angle: Math.random() * Math.PI * 2,
+      radius: 20 + Math.random() * 40,
+      speed: 0.002 + Math.random() * 0.008,
+      size: 1 + Math.random() * 2,
+      opacity: 0.3 + Math.random() * 0.5
+    });
+  }
+  drawHologram();
+}
+
+function drawHologram() {
+  if(!hologramActive || !hCtx) return;
+  const w = hologramCanvas.width, h = hologramCanvas.height;
+  const cx = w * 0.5, cy = h * 0.5;
+  hCtx.clearRect(0, 0, w, h);
+
+  // Obtener colores del tema
+  const primary = getComputedStyle(document.documentElement).getPropertyValue('--primary').trim() || '#00d4ff';
+  const dim = getComputedStyle(document.documentElement).getPropertyValue('--text-dim').trim() || 'rgba(0,0,0,0.3)';
+
+  // Anillo base
+  const ringR = Math.min(w, h) * 0.18;
+  hCtx.beginPath();
+  hCtx.arc(cx, cy, ringR, 0, Math.PI * 2);
+  hCtx.strokeStyle = primary;
+  hCtx.globalAlpha = 0.15 + Math.sin(Date.now() / 2000) * 0.05;
+  hCtx.lineWidth = 1.5;
+  hCtx.stroke();
+  hCtx.globalAlpha = 1;
+
+  // Anillo rotatorio
+  const rot = Date.now() / 3000;
+  hCtx.beginPath();
+  hCtx.arc(cx + Math.sin(rot) * 5, cy + Math.cos(rot * 0.7) * 5, ringR * 0.6, 0, Math.PI * 2);
+  hCtx.strokeStyle = primary;
+  hCtx.globalAlpha = 0.1;
+  hCtx.lineWidth = 1;
+  hCtx.setLineDash([4, 8]);
+  hCtx.stroke();
+  hCtx.setLineDash([]);
+  hCtx.globalAlpha = 1;
+
+  // Partículas orbitales
+  for(const p of hParticles) {
+    p.angle += p.speed;
+    const x = cx + Math.cos(p.angle) * p.radius;
+    const y = cy + Math.sin(p.angle) * p.radius * 0.5 + Math.sin(p.angle * 2) * 8;
+    hCtx.beginPath();
+    hCtx.arc(x, y, p.size, 0, Math.PI * 2);
+    hCtx.fillStyle = primary;
+    hCtx.globalAlpha = p.opacity * (0.7 + Math.sin(Date.now() / 1000 + p.angle) * 0.3);
+    hCtx.fill();
+  }
+  hCtx.globalAlpha = 1;
+
+  // OJOS holográficos que siguen al mouse
+  const eyeOffsetX = 12, eyeOffsetY = -5;
+  const eyeR = 6, pupilR = 2.5;
+  for(const side of [-1, 1]) {
+    const ex = cx + side * eyeOffsetX;
+    const ey = cy + eyeOffsetY;
+    // Esclerótica
+    hCtx.beginPath();
+    hCtx.arc(ex, ey, eyeR, 0, Math.PI * 2);
+    hCtx.fillStyle = primary;
+    hCtx.globalAlpha = 0.3;
+    hCtx.fill();
+    hCtx.globalAlpha = 1;
+    // Pupila (sigue mouse)
+    const dx = (mouseX - 0.5) * 3;
+    const dy = (mouseY - 0.5) * 3;
+    hCtx.beginPath();
+    hCtx.arc(ex + dx, ey + dy, pupilR, 0, Math.PI * 2);
+    hCtx.fillStyle = primary;
+    hCtx.globalAlpha = 0.9;
+    hCtx.fill();
+    hCtx.globalAlpha = 1;
+  }
+
+  // Brillo central pulsante
+  const pulse = 0.08 + Math.sin(Date.now() / 1200) * 0.04;
+  const grad = hCtx.createRadialGradient(cx, cy, 0, cx, cy, ringR * 0.3);
+  grad.addColorStop(0, primary);
+  grad.addColorStop(1, 'transparent');
+  hCtx.beginPath();
+  hCtx.arc(cx, cy, ringR * 0.3, 0, Math.PI * 2);
+  hCtx.fillStyle = grad;
+  hCtx.globalAlpha = pulse;
+  hCtx.fill();
+  hCtx.globalAlpha = 1;
+
+  hAnimId = requestAnimationFrame(drawHologram);
+}
+
+// Seguimiento del mouse para los ojos
+document.addEventListener('mousemove', function(e) {
+  if(!hologramActive) return;
+  const canvas = document.getElementById('hologram-canvas');
+  if(!canvas) return;
+  const rect = canvas.getBoundingClientRect();
+  mouseX = (e.clientX - rect.left) / rect.width;
+  mouseY = (e.clientY - rect.top) / rect.height;
+});
+
+/* =========================================================
    TEMAS DE COLOR
    ========================================================= */
 const themes = [
@@ -1629,6 +1835,9 @@ loadMemory();
 loadFontSize();
 initThemes();
 initLangs();
+// Sonido y holograma
+if(localStorage.getItem('jarvis_sound') === '0') { soundEnabled = false; document.getElementById('sound-toggle').classList.remove('on'); }
+if(localStorage.getItem('jarvis_holo') === '1') { setTimeout(function(){ toggleHologram(); }, 1000); }
 renderSessions();
 initDragDrop();
 updateImgEngineUI();

@@ -1358,15 +1358,26 @@ async function getWeather() {
   addLog('Consultando clima...');
   showTyping();
   try {
-    // 1) Ciudad desde IP
-    const locRes = await fetch('https://ipapi.co/json/');
-    const loc = await locRes.json();
-    const city = loc.city || '—';
-    const region = loc.region || '';
-    const country = loc.country_name || '';
-    // 2) Clima desde Open-Meteo (gratis, sin API key, CORS ok)
-    const wRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${loc.latitude}&longitude=${loc.longitude}&current_weather=true&hourly=relativehumidity_2m,precipitation&timezone=auto`);
-    const w = await wRes.json();
+    // 1) GPS del navegador (preciso) o IP como fallback
+    let lat, lon;
+    try {
+      const pos = await new Promise((ok,err)=>navigator.geolocation.getCurrentPosition(ok,err,{timeout:5000,enableHighAccuracy:true}));
+      lat = pos.coords.latitude; lon = pos.coords.longitude;
+    } catch(e) {
+      addLog('GPS no disponible, usando IP...');
+      const ip = await (await fetch('https://ipapi.co/json/')).json();
+      lat = ip.latitude; lon = ip.longitude;
+    }
+    // 2) Reverse geocode: nombre real de la ciudad (español)
+    let city = '—', region = '', country = '';
+    try {
+      const geo = await (await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=es`)).json();
+      city = geo.city || geo.locality || '—';
+      region = geo.principalSubdivision || '';
+      country = geo.countryName || '';
+    } catch(e) { /* fallback */ }
+    // 3) Clima desde Open-Meteo
+    const w = await (await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&hourly=relativehumidity_2m,precipitation&timezone=auto`)).json();
     const cw = w.current_weather || {};
     const temp = cw.temperature != null ? cw.temperature+'°C' : '—';
     const wind = cw.windspeed != null ? cw.windspeed+'km/h' : '—';
@@ -1376,7 +1387,7 @@ async function getWeather() {
     const precip = (w.hourly?.precipitation?.[0]) ? w.hourly.precipitation[0]+'mm' : '0mm';
     removeTyping();
     const location = [city, region, country].filter(Boolean).join(', ');
-    addMessage('ai', `🌤️ **Clima — ${location}** (aproximado)\n\n☁️ **Estado:** ${desc}\n🌡️ **Temperatura:** ${temp}\n💧 **Humedad:** ${humidity}\n💨 **Viento:** ${wind}\n🌧️ **Precipitación:** ${precip}`);
+    addMessage('ai', `🌤️ **Clima en ${location}**\n\n☁️ **Estado:** ${desc}\n🌡️ **Temperatura:** ${temp}\n💧 **Humedad:** ${humidity}\n💨 **Viento:** ${wind}\n🌧️ **Precipitación:** ${precip}`);
     addLog('Clima: '+location+' '+temp);
   } catch(e) {
     removeTyping();

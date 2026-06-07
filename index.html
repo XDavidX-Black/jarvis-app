@@ -1358,22 +1358,24 @@ async function getWeather() {
   addLog('Consultando clima...');
   showTyping();
   try {
-    const res = await fetch('https://wttr.in?format=j1');
-    const data = await res.json();
-    const cc = data.current_condition[0] || {};
-    const area = data.nearest_area[0] || {};
-    const city = (area.areaName?.[0]?.value || '—');
-    const country = (area.country?.[0]?.value || '');
-    const condition = (cc.weatherDesc?.[0]?.value || '—');
-    const temp = cc.temp_C ? cc.temp_C+'°C' : '—';
-    const feels = cc.FeelsLikeC ? cc.FeelsLikeC+'°C' : '—';
-    const humidity = cc.humidity ? cc.humidity+'%' : '—';
-    const wind = cc.windspeedKmph ? cc.windspeedKmph+'km/h '+cc.winddir16Point : '—';
-    const precip = cc.precipMM ? cc.precipMM+'mm' : '0mm';
-    const vis = cc.visibility ? cc.visibility+'km' : '—';
+    // 1) Ciudad desde IP
+    const locRes = await fetch('https://ipapi.co/json/');
+    const loc = await locRes.json();
+    const city = loc.city || '—';
+    const country = loc.country_name || '';
+    // 2) Clima desde Open-Meteo (gratis, sin API key, CORS ok)
+    const wRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${loc.latitude}&longitude=${loc.longitude}&current_weather=true&hourly=relativehumidity_2m,precipitation&timezone=auto`);
+    const w = await wRes.json();
+    const cw = w.current_weather || {};
+    const temp = cw.temperature != null ? cw.temperature+'°C' : '—';
+    const wind = cw.windspeed != null ? cw.windspeed+'km/h' : '—';
+    const code = cw.weathercode != null ? cw.weathercode : 0;
+    const desc = {0:'Despejado',1:'Mayormente despejado',2:'Parcialmente nublado',3:'Nublado',45:'Niebla',48:'Niebla con escarcha',51:'Llovizna ligera',53:'Llovizna moderada',55:'Llovizna densa',61:'Lluvia ligera',63:'Lluvia moderada',65:'Lluvia fuerte',71:'Nieve ligera',73:'Nieve moderada',75:'Nieve fuerte',80:'Chubascos ligeros',81:'Chubascos moderados',82:'Chubascos violentos',95:'Tormenta',96:'Tormenta con granizo',99:'Tormenta con granizo fuerte'}[code] || '—';
+    const humidity = (w.hourly?.relativehumidity_2m?.[0] != null) ? w.hourly.relativehumidity_2m[0]+'%' : '—';
+    const precip = (w.hourly?.precipitation?.[0]) ? w.hourly.precipitation[0]+'mm' : '0mm';
     removeTyping();
-    addMessage('ai', `🌤️ **Clima en ${city}, ${country}**\n\n☁️ **Estado:** ${condition}\n🌡️ **Temperatura:** ${temp} (sensación ${feels})\n💧 **Humedad:** ${humidity}\n💨 **Viento:** ${wind}\n🌧️ **Precipitación:** ${precip}\n👁️ **Visibilidad:** ${vis}`);
-    addLog('Clima recibido: '+city);
+    addMessage('ai', `🌤️ **Clima en ${city}, ${country}**\n\n☁️ **Estado:** ${desc}\n🌡️ **Temperatura:** ${temp}\n💧 **Humedad:** ${humidity}\n💨 **Viento:** ${wind}\n🌧️ **Precipitación:** ${precip}`);
+    addLog('Clima: '+city+' '+temp);
   } catch(e) {
     removeTyping();
     addMessage('ai', '❌ No se pudo obtener el clima. Intenta más tarde.');

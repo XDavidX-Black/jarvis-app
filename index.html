@@ -961,7 +961,7 @@ async function sendMessage(){
     // Construir mensajes para API (multimodal si hay imagen)
     const apiMessages = sessionHistory.map(function(m){ return {role:m.role, content:m.content}; });
     if(Array.isArray(msgContent)) apiMessages[apiMessages.length-1].content = msgContent;
-    const maxTok = Array.isArray(msgContent) ? 2000 : 1000;
+    const maxTok = Array.isArray(msgContent) ? 1000 : 512;
     const res=await fetch(SERVER+'/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({system:buildSystem(),messages:apiMessages,max_tokens:maxTok})});
     const data=await res.json(); removeTyping();
     if(!res.ok) throw new Error(data.error || 'Servidor respondió '+res.status);
@@ -1074,7 +1074,7 @@ function autoResize(el){ el.style.height='auto'; el.style.height=Math.min(el.scr
    ========================================================= */
 async function askAI(prompt) {
   try {
-    const res = await fetch(SERVER+'/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({system:'Eres J.A.R.V.I.S. Genera contenido detallado, bien estructurado y útil. Sin etiquetas de formato.',messages:[{role:'user',content:prompt}],max_tokens:2000})});
+    const res = await fetch(SERVER+'/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({system:'Eres J.A.R.V.I.S. Genera contenido detallado, bien estructurado y útil. Sin etiquetas de formato.',messages:[{role:'user',content:prompt}],max_tokens:512})});
     const data = await res.json();
     return data.content?.[0]?.text?.trim() || '';
   } catch(e) {

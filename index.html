@@ -372,9 +372,9 @@
           <span>Sonidos</span>
           <div class="toggle on" id="sound-toggle" onclick="toggleSound()"></div>
         </div>
-        <div class="voice-toggle" style="margin-bottom:0;">
+          <div class="voice-toggle" style="margin-bottom:0;">
           <span>Holograma</span>
-          <div class="toggle" id="holo-toggle" onclick="toggleHologram()"></div>
+          <div class="toggle on" id="holo-toggle" onclick="toggleHologram()"></div>
         </div>
 
       </div>
@@ -805,7 +805,7 @@ async function sendMessage(){
   loading=true; document.getElementById('send-btn').disabled=true;
   synth.cancel(); addMessage('user',text); playSound('send');
   sessionHistory.push({role:'user',content:text});
-  addLog('Procesando...'); showTyping();
+  addLog('Procesando...'); showTyping(); setHoloState('processing');
   try{
     const res=await fetch(SERVER+'/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({system:buildSystem(),messages:sessionHistory,max_tokens:1000})});
     const data=await res.json(); removeTyping();
@@ -819,7 +819,7 @@ async function sendMessage(){
     memory.chatHistory=[...memory.chatHistory,histEntry].slice(-20);
     fetch(SERVER+'/memory/fact',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({fact:fact||null,history:histEntry})});
     if(fact) updateUI();
-    addMessage('ai',reply); addLog('Respuesta recibida'); speak(reply); playSound('receive');
+    addMessage('ai',reply); addLog('Respuesta recibida'); speak(reply); playSound('receive'); setHoloState('speaking');
 
     // Detectar si el usuario pidió generar un archivo (solo mostrar preview)
     const lower = text.toLowerCase();
@@ -844,7 +844,7 @@ async function sendMessage(){
     // Guardar sesión en localStorage
     saveSession();
   }catch(err){
-    removeTyping(); addMessage('ai','Error: '+err.message); addLog('Error'); playSound('error');
+    removeTyping(); addMessage('ai','Error: '+err.message); addLog('Error'); playSound('error'); setHoloState('idle');
   }
   loading=false; document.getElementById('send-btn').disabled=false; inp.focus();
 }
@@ -1556,6 +1556,8 @@ let hologramActive = false;
 let hologramCanvas, hCtx, hAnimId;
 let mouseX = 0.5, mouseY = 0.5;
 let hParticles = [];
+let holoState = 'idle'; // 'idle' | 'processing' | 'speaking'
+let holoStateTimer = null;
 
 function toggleHologram() {
   hologramActive = !hologramActive;
@@ -1604,37 +1606,43 @@ function drawHologram() {
   const primary = getComputedStyle(document.documentElement).getPropertyValue('--primary').trim() || '#00d4ff';
   const dim = getComputedStyle(document.documentElement).getPropertyValue('--text-dim').trim() || 'rgba(0,0,0,0.3)';
 
+  const state = holoState;
+  const now = Date.now();
+  const speedMul = state === 'processing' ? 3 : state === 'speaking' ? 2 : 1;
+
   // Anillo base
   const ringR = Math.min(w, h) * 0.18;
   hCtx.beginPath();
   hCtx.arc(cx, cy, ringR, 0, Math.PI * 2);
   hCtx.strokeStyle = primary;
-  hCtx.globalAlpha = 0.15 + Math.sin(Date.now() / 2000) * 0.05;
-  hCtx.lineWidth = 1.5;
+  hCtx.globalAlpha = (0.15 + Math.sin(now / 2000) * 0.05) * (state !== 'idle' ? 2 : 1);
+  hCtx.lineWidth = state === 'processing' ? 2.5 : 1.5;
   hCtx.stroke();
   hCtx.globalAlpha = 1;
 
-  // Anillo rotatorio
-  const rot = Date.now() / 3000;
+  // Anillo rotatorio (más rápido al procesar)
+  const rot = now / (3000 / speedMul);
   hCtx.beginPath();
-  hCtx.arc(cx + Math.sin(rot) * 5, cy + Math.cos(rot * 0.7) * 5, ringR * 0.6, 0, Math.PI * 2);
+  hCtx.arc(cx + Math.sin(rot) * (state === 'processing' ? 10 : 5), cy + Math.cos(rot * 0.7) * (state === 'processing' ? 10 : 5), ringR * 0.6, 0, Math.PI * 2);
   hCtx.strokeStyle = primary;
-  hCtx.globalAlpha = 0.1;
-  hCtx.lineWidth = 1;
-  hCtx.setLineDash([4, 8]);
+  hCtx.globalAlpha = state === 'processing' ? 0.3 : 0.1;
+  hCtx.lineWidth = state === 'processing' ? 1.5 : 1;
+  hCtx.setLineDash(state === 'speaking' ? [2, 4] : [4, 8]);
   hCtx.stroke();
   hCtx.setLineDash([]);
   hCtx.globalAlpha = 1;
 
   // Partículas orbitales
+  const particleSpeed = speedMul;
   for(const p of hParticles) {
-    p.angle += p.speed;
+    p.angle += p.speed * particleSpeed;
+    const waveAmp = state === 'speaking' ? 15 + Math.sin(now / 300 + p.angle * 3) * 8 : 8;
     const x = cx + Math.cos(p.angle) * p.radius;
-    const y = cy + Math.sin(p.angle) * p.radius * 0.5 + Math.sin(p.angle * 2) * 8;
+    const y = cy + Math.sin(p.angle) * p.radius * 0.5 + Math.sin(p.angle * 2) * waveAmp;
     hCtx.beginPath();
-    hCtx.arc(x, y, p.size, 0, Math.PI * 2);
+    hCtx.arc(x, y, p.size * (state === 'processing' ? 1.5 : 1), 0, Math.PI * 2);
     hCtx.fillStyle = primary;
-    hCtx.globalAlpha = p.opacity * (0.7 + Math.sin(Date.now() / 1000 + p.angle) * 0.3);
+    hCtx.globalAlpha = p.opacity * (0.7 + Math.sin(now / 1000 + p.angle) * 0.3) * (state !== 'idle' ? 1.5 : 1);
     hCtx.fill();
   }
   hCtx.globalAlpha = 1;
@@ -1663,8 +1671,10 @@ function drawHologram() {
     hCtx.globalAlpha = 1;
   }
 
-  // Brillo central pulsante
-  const pulse = 0.08 + Math.sin(Date.now() / 1200) * 0.04;
+  // Brillo central pulsante (más intenso al procesar/hablar)
+  const pulseAmp = state === 'processing' ? 0.15 : state === 'speaking' ? 0.12 : 0.08;
+  const pulseSpeed = state === 'processing' ? 600 : state === 'speaking' ? 800 : 1200;
+  const pulse = pulseAmp + Math.sin(now / pulseSpeed) * (pulseAmp * 0.5);
   const grad = hCtx.createRadialGradient(cx, cy, 0, cx, cy, ringR * 0.3);
   grad.addColorStop(0, primary);
   grad.addColorStop(1, 'transparent');
@@ -1687,6 +1697,15 @@ document.addEventListener('mousemove', function(e) {
   mouseX = (e.clientX - rect.left) / rect.width;
   mouseY = (e.clientY - rect.top) / rect.height;
 });
+
+// Cambiar estado del holograma
+function setHoloState(s) {
+  holoState = s;
+  if(holoStateTimer) { clearTimeout(holoStateTimer); holoStateTimer = null; }
+  if(s === 'speaking') {
+    holoStateTimer = setTimeout(function() { holoState = 'idle'; holoStateTimer = null; }, 2000);
+  }
+}
 
 /* =========================================================
    TEMAS DE COLOR
@@ -1835,9 +1854,11 @@ loadMemory();
 loadFontSize();
 initThemes();
 initLangs();
-// Sonido y holograma
+// Sonido y holograma (activo por defecto)
 if(localStorage.getItem('jarvis_sound') === '0') { soundEnabled = false; document.getElementById('sound-toggle').classList.remove('on'); }
-if(localStorage.getItem('jarvis_holo') === '1') { setTimeout(function(){ toggleHologram(); }, 1000); }
+if(localStorage.getItem('jarvis_holo') !== '0') { setTimeout(function(){ toggleHologram(); }, 1000); }
+// Sonido de inicio
+setTimeout(function(){ playSound('startup'); }, 200);
 renderSessions();
 initDragDrop();
 updateImgEngineUI();

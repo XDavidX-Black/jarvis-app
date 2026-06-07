@@ -641,6 +641,8 @@ let naturalTTS = true;
 let ipDataCache = null;
 let weatherCache = null;
 let locationCache = null;
+let lastContextUpdate = 0;
+let contextUpdating = false;
 let synth = window.speechSynthesis;
 let recognition = null;
 let isListening = false;
@@ -826,6 +828,7 @@ async function loadMemory() {
     document.getElementById('setup-modal').style.display='flex';
     document.getElementById('welcome-msg').textContent='Modo local — configura tu perfil.';
   }
+  refreshContext();
 }
 
 async function saveSetup() {
@@ -968,6 +971,7 @@ async function sendMessage(){
   sessionHistory.push({role:'user',content:Array.isArray(msgContent) ? text : msgContent});
   addLog('Procesando...'); showTyping(); setHoloState('processing');
   try{
+    if(Date.now() - lastContextUpdate > 300000) refreshContext();
     // Construir mensajes para API (multimodal si hay imagen)
     const apiMessages = sessionHistory.map(function(m){ return {role:m.role, content:m.content}; });
     if(Array.isArray(msgContent)) apiMessages[apiMessages.length-1].content = msgContent;
@@ -2112,18 +2116,17 @@ function exportChat() {
 }
 
 /* =========================================================
-   CLIMA (wttr.in — gratis, sin API key)
+   CONTEXTO AUTOMÁTICO (ubicación + clima, sin UI)
    ========================================================= */
-async function getWeather() {
-  addLog('Consultando clima...');
-  showTyping();
+async function refreshContext() {
+  if(contextUpdating) return;
+  contextUpdating = true;
   try {
     let lat, lon;
     try {
       const pos = await new Promise((ok,err)=>navigator.geolocation.getCurrentPosition(ok,err,{timeout:5000,enableHighAccuracy:false}));
       lat = pos.coords.latitude; lon = pos.coords.longitude;
     } catch(e) {
-      addLog('GPS no disponible, usando IP...');
       if(!ipDataCache) { const r=await fetch('https://ipapi.co/json/'); ipDataCache=await r.json(); }
       lat = ipDataCache.latitude; lon = ipDataCache.longitude;
     }
@@ -2132,25 +2135,42 @@ async function getWeather() {
       const geo = await (await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&accept-language=es`, { headers: { 'User-Agent': 'JARVIS-Weather/1.0' } })).json();
       const a = geo.address || {};
       city = a.city || a.town || a.village || a.municipality || a.county || '—';
-      region = a.state || '';
-      country = a.country || '';
-    } catch(e) { /* fallback */ }
-    // Clima actual + pronóstico 3 días desde Open-Meteo
+      region = a.state || ''; country = a.country || '';
+    } catch(e) {}
+    locationCache = [city, region, country].filter(Boolean).join(', ');
+    const w = await (await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m,wind_direction_10m&timezone=auto&forecast_days=1`)).json();
+    const c = w.current || {};
+    const desc = {0:'Despejado',1:'Mayormente despejado',2:'Parcialmente nublado',3:'Nublado',45:'Niebla',48:'Niebla',51:'Llovizna ligera',53:'Llovizna moderada',55:'Llovizna densa',61:'Lluvia ligera',63:'Lluvia moderada',65:'Lluvia fuerte',71:'Nieve ligera',73:'Nieve moderada',75:'Nieve fuerte',80:'Chubascos',81:'Chubascos',82:'Chubascos',95:'Tormenta',96:'Tormenta',99:'Tormenta'}[c.weather_code] || '—';
+    weatherCache = `${desc}, ${c.temperature_2m != null ? c.temperature_2m+'°C' : '—'}, sensación ${c.apparent_temperature != null ? c.apparent_temperature+'°C' : '—'}, humedad ${c.relative_humidity_2m != null ? c.relative_humidity_2m+'%' : '—'}, viento ${c.wind_speed_10m != null ? c.wind_speed_10m+' km/h' : '—'}`;
+    lastContextUpdate = Date.now();
+  } catch(e) { /* silencioso */ }
+  contextUpdating = false;
+}
+
+/* =========================================================
+   CLIMA (muestra al usuario — con pronóstico detallado)
+   ========================================================= */
+async function getWeather() {
+  addLog('Consultando clima...');
+  showTyping();
+  await refreshContext();
+  if(!weatherCache) { removeTyping(); addMessage('ai','❌ No se pudo obtener el clima.'); return; }
+  try {
+    let lat, lon;
+    try {
+      const pos = await new Promise((ok,err)=>navigator.geolocation.getCurrentPosition(ok,err,{timeout:5000,enableHighAccuracy:false}));
+      lat = pos.coords.latitude; lon = pos.coords.longitude;
+    } catch(e) {
+      if(!ipDataCache) { const r=await fetch('https://ipapi.co/json/'); ipDataCache=await r.json(); }
+      lat = ipDataCache.latitude; lon = ipDataCache.longitude;
+    }
     const w = await (await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m,wind_direction_10m,uv_index&daily=temperature_2m_max,temperature_2m_min,weather_code,precipitation_sum,precipitation_probability_max,sunrise,sunset,wind_speed_10m_max&timezone=auto&forecast_days=3`)).json();
     const c = w.current || {};
-    const temp = c.temperature_2m != null ? c.temperature_2m + '°C' : '—';
-    const feels = c.apparent_temperature != null ? c.apparent_temperature + '°C' : '—';
-    const wind = c.wind_speed_10m != null ? c.wind_speed_10m + ' km/h' : '—';
-    const hum = c.relative_humidity_2m != null ? c.relative_humidity_2m + '%' : '—';
-    const uv = c.uv_index != null ? c.uv_index : '—';
     const wCode = c.weather_code != null ? c.weather_code : 0;
     const desc = {0:'☀️ Despejado',1:'🌤 Mayormente despejado',2:'⛅ Parcialmente nublado',3:'☁️ Nublado',45:'🌫 Niebla',48:'🌫 Niebla con escarcha',51:'🌦 Llovizna ligera',53:'🌦 Llovizna moderada',55:'🌦 Llovizna densa',56:'🌦 Llovizna helada',57:'🌦 Llovizna helada densa',61:'🌧 Lluvia ligera',63:'🌧 Lluvia moderada',65:'🌧 Lluvia fuerte',66:'🌧 Lluvia helada ligera',67:'🌧 Lluvia helada fuerte',71:'❄️ Nieve ligera',73:'❄️ Nieve moderada',75:'❄️ Nieve fuerte',77:'❄️ Granos de nieve',80:'🌦 Chubascos ligeros',81:'🌦 Chubascos moderados',82:'🌦 Chubascos violentos',85:'❄️ Chubascos de nieve ligeros',86:'❄️ Chubascos de nieve fuertes',95:'⛈ Tormenta',96:'⛈ Tormenta con granizo',99:'⛈ Tormenta con granizo fuerte'}[wCode] || '—';
     const windDir = c.wind_direction_10m != null ? ['N','NE','E','SE','S','SO','O','NO'][Math.round(c.wind_direction_10m/45)%8] : '';
     const d = w.daily || {};
-    const location = [city, region, country].filter(Boolean).join(', ');
-    locationCache = location;
-    weatherCache = `${desc.replace(/^[^\s]+\s/,'')}, ${temp}, sensación ${feels}, humedad ${hum}, viento ${wind} ${windDir}`;
-    let msg = '🌤️ **Clima en ' + location + '**\n\n**Ahora:**\n' + desc + '\n🌡️ **Temperatura:** ' + temp + ' (sensación ' + feels + ')\n💧 **Humedad:** ' + hum + '\n💨 **Viento:** ' + wind + ' ' + windDir + '\n☀️ **UV:** ' + uv + '\n';
+    let msg = '🌤️ **Clima en ' + locationCache + '**\n\n**Ahora:**\n' + desc + '\n🌡️ **Temperatura:** ' + (c.temperature_2m != null ? c.temperature_2m + '°C' : '—') + ' (sensación ' + (c.apparent_temperature != null ? c.apparent_temperature + '°C' : '—') + ')\n💧 **Humedad:** ' + (c.relative_humidity_2m != null ? c.relative_humidity_2m + '%' : '—') + '\n💨 **Viento:** ' + (c.wind_speed_10m != null ? c.wind_speed_10m + ' km/h' : '—') + ' ' + windDir + '\n☀️ **UV:** ' + (c.uv_index != null ? c.uv_index : '—') + '\n';
     if(d.time) {
       msg += '\n**Pronóstico 3 días:**\n';
       for(let i=0;i<d.time.length;i++) {
@@ -2164,7 +2184,7 @@ async function getWeather() {
     if(d.sunrise?.[0]) msg += '\n🌅 **Amanecer:** ' + new Date(d.sunrise[0]).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'}) + ' | 🌇 **Atardecer:** ' + new Date(d.sunset[0]).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
     removeTyping();
     addMessage('ai', msg);
-    addLog('Clima: ' + location + ' ' + temp);
+    addLog('Clima: ' + locationCache + ' ' + (c.temperature_2m != null ? c.temperature_2m + '°C' : '—'));
   } catch(e) {
     removeTyping();
     addMessage('ai', '❌ No se pudo obtener el clima. Intenta más tarde.');

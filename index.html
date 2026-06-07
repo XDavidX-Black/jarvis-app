@@ -407,7 +407,7 @@
 <script>
 const SERVER = "https://jarvis-server-production-8be2.up.railway.app";
 let memory = { name:"", job:"", interests:"", sessions:0, facts:[], chatHistory:[] };
-let hfToken = localStorage.getItem('jarvis_hf_token') || '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';
+let hfToken = localStorage.getItem('jarvis_hf_token') || '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';
 let mode = 'general';
 let sessionHistory = [];
 let loading = false;
@@ -971,35 +971,16 @@ function generateExcelFixed(content) {
    FUNCIÓN: Mostrar imagen en el chat
    ========================================================= */
 function displayImageInChat(userPrompt, imgUrl, engine) {
-  showMessages();
-  const msgs = document.getElementById('messages');
-  const msgDiv = document.createElement('div');
-  msgDiv.className = 'msg ai';
-  msgDiv.innerHTML = `
-    <div class="avatar ai">AI</div>
-    <div class="msg-inner">
-      <div class="msg-label">J.A.R.V.I.S</div>
-      <div class="bubble ai">
-        🎨 <strong>Imagen:</strong> ${userPrompt}<br>
-        <small style="color:var(--text-dim);font-size:10px;">Motor: ${engine}</small><br>
-        <a href="${imgUrl}" target="_blank">
-          <img src="${imgUrl}" alt="${userPrompt}"
-            onerror="this.style.display='none'; this.nextElementSibling.style.display='block';"
-            style="max-width:320px;border-radius:6px;border:1px solid var(--border);cursor:pointer;display:block;margin-top:4px;"
-            onclick="openImgModal('${imgUrl}')"/>
-          <div style="display:none;padding:12px;border:1px dashed var(--border);border-radius:6px;text-align:center;font-size:12px;">
-            ⏳ Generando...<br>
-            <a href="${imgUrl}" target="_blank"
-              style="font-family:'Share Tech Mono',monospace;font-size:12px;color:var(--primary);margin-top:8px;display:inline-block;">→ Abrir directamente</a>
-          </div>
-        </a>
-        <br>
-        <a href="${imgUrl}" target="_blank"
-          style="font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--primary);text-decoration:none;border:1px solid var(--border);padding:4px 10px;border-radius:4px;display:inline-block;margin-top:6px;">⬇ Abrir / Descargar</a>
-      </div>
-    </div>`;
-  msgs.appendChild(msgDiv);
-  msgs.scrollTop = msgs.scrollHeight;
+  const imgHtml = `<a href="${imgUrl}" target="_blank">
+    <img src="${imgUrl}" alt="${userPrompt.replace(/"/g,'&quot;')}"
+      onerror="this.outerHTML='<span style=color:var(--accent)>&#9888; No se pudo cargar, haz clic en el enlace de abajo para abrirla.</span>'"
+      style="max-width:320px;border-radius:6px;border:1px solid var(--border);cursor:pointer;display:block;margin-top:6px;"
+      onclick="openImgModal('${imgUrl}')"/>
+  </a>
+  <br>
+  <a href="${imgUrl}" target="_blank"
+    style="font-family:Share Tech Mono,monospace;font-size:11px;color:var(--primary);text-decoration:none;border:1px solid var(--border);padding:5px 12px;border-radius:4px;display:inline-block;">⬇ Abrir imagen en nueva pestaña</a>`;
+  addMessage('ai', `🎨 **Imagen generada:** ${userPrompt}\n\n_ Motor: ${engine}_\n\n${imgHtml}`);
 }
 
 function updateImgEngineUI() {
@@ -1041,60 +1022,28 @@ async function generateImage(userPrompt, skipUserMsg) {
 }
 
 async function generateImageHF(userPrompt) {
-  showMessages();
-  const msgs = document.getElementById('messages');
-  const loadingDiv = document.createElement('div');
-  loadingDiv.className = 'msg ai';
-  loadingDiv.innerHTML = `
-    <div class="avatar ai">AI</div>
-    <div class="msg-inner">
-      <div class="msg-label">J.A.R.V.I.S</div>
-      <div class="bubble ai">
-        🎨 Generando con Hugging Face...<br>
-        <small style="color:var(--text-dim);font-size:11px;">Puede tardar 10-30 segundos</small><br>
-        <div style="height:3px;background:var(--primary-dim);border-radius:2px;overflow:hidden;width:200px;margin-top:8px;">
-          <div style="height:100%;width:0%;background:var(--primary);border-radius:2px;animation:hfProgress 25s linear forwards;"></div>
-        </div>
-      </div>
-    </div>`;
-  msgs.appendChild(loadingDiv);
-  msgs.scrollTop = msgs.scrollHeight;
-
-  const style = document.createElement('style');
-  style.textContent = '@keyframes hfProgress { from{width:0%} to{width:95%} }';
-  document.head.appendChild(style);
+  const prompt = userPrompt + ', high quality, detailed';
 
   try {
-    const prompt = userPrompt + ', high quality, detailed';
-    const model = 'runwayml/stable-diffusion-v1-5';
-
-    // Try up to 2 times (model might be loading on first try)
-    let res;
-    for(let attempt = 0; attempt < 2; attempt++) {
-      if(attempt > 0) await new Promise(r => setTimeout(r, 3000));
-      res = await fetch('https://api-inference.huggingface.co/models/' + model, {
-        method: 'POST',
-        headers: { 'Authorization': 'Bearer ' + hfToken, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ inputs: prompt })
-      });
-      if(res.ok || res.status !== 503) break;
-    }
+    // Try via server proxy (no CORS issues)
+    const res = await fetch(SERVER + '/generate-image', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt, token: hfToken, model: 'runwayml/stable-diffusion-v1-5' })
+    });
 
     if(!res.ok) {
-      const err = await res.text().catch(()=>'');
-      throw new Error(res.status === 503 ? 'El modelo está cargando, intenta de nuevo en unos segundos' : (err.substring(0,100) || 'Error ' + res.status));
+      const err = await res.json().catch(()=>({error:'Error ' + res.status}));
+      throw new Error(err.error || 'Error ' + res.status);
     }
 
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
-    loadingDiv.remove();
-    displayImageInChat(userPrompt, url, 'Hugging Face');
-
+    displayImageInChat(userPrompt, url, 'Hugging Face SD 1.5');
     addLog('Imagen generada con HF');
     showToast('🎨 Imagen generada');
   } catch(e) {
-    loadingDiv.remove();
-    addMessage('ai', `⚠️ **Hugging Face:** ${e.message}\n\nUsando Pollinations como respaldo...`);
+    addMessage('ai', `⚠️ Servidor: ${e.message}. Usando Pollinations como respaldo...`);
     generateImagePollinations(userPrompt);
   }
 }

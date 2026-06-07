@@ -429,6 +429,7 @@ function buildSystem() {
   if(memory.interests) s += ` Intereses: ${memory.interests}.`;
   if(memory.facts.length) s += `\nAprendido:\n${memory.facts.slice(-8).join('\n')}`;
   if(memory.chatHistory.length) s += `\nHistorial:\n${memory.chatHistory.slice(-4).join('\n')}`;
+  s += `\nCAPACIDADES DE ARCHIVOS: Puedo generar PDF, Word, Excel e imágenes cuando el usuario lo solicite. Si el usuario pide un archivo, debo responder con el contenido COMPLETO y DETALLADO que debería ir dentro de ese archivo, no solo una descripción.`;
   return s;
 }
 
@@ -598,6 +599,21 @@ async function sendMessage(){
     fetch(SERVER+'/memory/fact',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({fact:fact||null,history:histEntry})});
     if(fact) updateUI();
     addMessage('ai',reply); addLog('Respuesta recibida'); speak(reply);
+
+    // Detectar si el usuario pidió generar un archivo
+    const lower = text.toLowerCase();
+    const wantsFile = /(genera|crea|haz|haceme|prepara|elabora|produce)/i.test(text);
+    if(wantsFile) {
+      if(/excel|hoja\s*(de\s*)?calculo|hoja\s*(de\s*)?cálculo|csv|xlsx/i.test(lower)) {
+        generateExcelFromContent(reply);
+      } else if(/word|docx|documento\s*word/i.test(lower)) {
+        generateWord(reply);
+      } else if(/pdf|documento\s*pdf|documento\s*pdf/i.test(lower)) {
+        generatePDF(reply);
+      } else if(/imagen|dibuja|dibujo|ilustra|imagen|crea\s*una\s*imagen/i.test(lower)) {
+        generateImage(text);
+      }
+    }
   }catch(err){
     removeTyping(); addMessage('ai','Error: '+err.message); addLog('Error');
   }
@@ -608,6 +624,20 @@ function sendSuggestion(t){ document.getElementById('input').value=t; sendMessag
 function clearChat(){ sessionHistory=[]; document.getElementById('messages').innerHTML=''; document.getElementById('messages').style.display='none'; document.getElementById('welcome').style.display='flex'; synth.cancel(); addLog('Sesión reiniciada'); }
 function handleKey(e){ if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMessage();} }
 function autoResize(el){ el.style.height='auto'; el.style.height=Math.min(el.scrollHeight,130)+'px'; }
+
+/* =========================================================
+   FUNCIÓN: Preguntar a la IA por contenido
+   ========================================================= */
+async function askAI(prompt) {
+  try {
+    const res = await fetch(SERVER+'/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({system:'Eres J.A.R.V.I.S. Genera contenido detallado, bien estructurado y útil. Sin etiquetas de formato.',messages:[{role:'user',content:prompt}],max_tokens:2000})});
+    const data = await res.json();
+    return data.content?.[0]?.text?.trim() || '';
+  } catch(e) {
+    console.error('askAI error:', e);
+    return '';
+  }
+}
 
 /* =========================================================
    NUEVA FUNCIÓN: DETECTAR IP
@@ -707,11 +737,21 @@ async function handleFileUpload(event) {
 /* =========================================================
    NUEVA FUNCIÓN: GENERAR PDF
    ========================================================= */
-function promptGeneratePDF() {
+async function promptGeneratePDF() {
   const topic = prompt('¿Sobre qué tema quieres generar el PDF?', lastAIResponse ? 'Última respuesta de JARVIS' : 'Informe de ejemplo');
   if(!topic) return;
-  const content = topic === 'Última respuesta de JARVIS' && lastAIResponse ? lastAIResponse : topic;
-  generatePDF(content);
+  if(topic === 'Última respuesta de JARVIS' && lastAIResponse) {
+    generatePDF(lastAIResponse);
+    return;
+  }
+  addLog('Generando contenido con IA...');
+  showTyping();
+  const content = await askAI('Genera un documento completo y detallado sobre: ' + topic + '. Incluye introducción, desarrollo, datos relevantes y conclusión. Escribe en español.');
+  removeTyping();
+  if(content) {
+    addMessage('ai', '📄 **Contenido generado por IA para el PDF:**\n\n' + content.substring(0,500) + (content.length>500?'...':''));
+    generatePDF(content);
+  }
 }
 
 function generatePDF(content) {
@@ -802,11 +842,21 @@ function generatePDFFallback(content) {
 /* =========================================================
    NUEVA FUNCIÓN: GENERAR WORD
    ========================================================= */
-function promptGenerateWord() {
+async function promptGenerateWord() {
   const topic = prompt('¿Qué contenido quieres en el Word?', lastAIResponse ? 'Última respuesta de JARVIS' : 'Documento de ejemplo');
   if(!topic) return;
-  const content = topic === 'Última respuesta de JARVIS' && lastAIResponse ? lastAIResponse : topic;
-  generateWord(content);
+  if(topic === 'Última respuesta de JARVIS' && lastAIResponse) {
+    generateWord(lastAIResponse);
+    return;
+  }
+  addLog('Generando contenido Word con IA...');
+  showTyping();
+  const content = await askAI('Genera un documento profesional y detallado sobre: ' + topic + '. Escribe en español con estructura clara.');
+  removeTyping();
+  if(content) {
+    addMessage('ai', '📝 **Contenido generado por IA para el Word:**\n\n' + content.substring(0,500) + (content.length>500?'...':''));
+    generateWord(content);
+  }
 }
 
 async function generateWord(content) {
@@ -846,49 +896,58 @@ async function generateWord(content) {
 /* =========================================================
    NUEVA FUNCIÓN: GENERAR EXCEL
    ========================================================= */
-function promptGenerateExcel() {
-  const topic = prompt('¿Qué datos quieres en el Excel?\nEjemplo: ventas enero-junio, lista de tareas, inventario...', 'Reporte de sesiones JARVIS');
+async function promptGenerateExcel() {
+  const topic = prompt('¿Qué datos quieres en el Excel?\nEjemplo: costos de pizza, ventas mensuales, inventario...', lastAIResponse ? 'Última respuesta de JARVIS' : 'Reporte de datos');
   if(!topic) return;
-  generateExcel(topic);
+  if(topic === 'Última respuesta de JARVIS' && lastAIResponse) {
+    generateExcelFromContent(lastAIResponse);
+    return;
+  }
+  addLog('Generando contenido Excel con IA...');
+  showTyping();
+  const content = await askAI('Genera datos tabulares para un Excel sobre: ' + topic + '. Devuelve los datos como una tabla clara con filas y columnas. La primera línea debe tener los encabezados separados por | (pipe). Las siguientes líneas son los datos. Ejemplo:\nProducto|Precio|Cantidad\nPizza Margarita|$5.00|10\nPizza Pepperoni|$6.50|8');
+  removeTyping();
+  if(content) {
+    addMessage('ai', '📊 **Datos generados por IA para el Excel:**\n\n' + content.substring(0,500) + (content.length>500?'...':''));
+    generateExcelFromContent(content);
+  }
 }
 
-function generateExcel(topic) {
+function generateExcelFromContent(content) {
   try {
     const wb = XLSX.utils.book_new();
-    let data;
-    if(topic.toLowerCase().includes('sesion') || topic.toLowerCase().includes('jarvis')) {
-      data = [
-        ['J.A.R.V.I.S — REPORTE', '', '', ''],
-        ['Generado:', new Date().toLocaleString('es-MX'), '', ''],
-        ['Usuario:', memory.name || '—', '', ''],
-        ['', '', '', ''],
-        ['Sesiones totales', 'Datos aprendidos', 'Modo activo', 'Estado'],
-        [memory.sessions, memory.facts.length, modes[mode].name, 'ACTIVO'],
-        ['', '', '', ''],
-        ['Historial reciente', '', '', ''],
-        ...(memory.chatHistory.slice(-5).map((h,i)=>[(i+1)+'.', h, '', '']))
-      ];
-    } else {
-      data = [
-        ['J.A.R.V.I.S — ' + topic.toUpperCase(), '', ''],
-        ['Generado:', new Date().toLocaleString('es-MX'), ''],
-        ['', '', ''],
-        ['#', 'Concepto', 'Valor'],
-        [1, 'Elemento 1', '—'],
-        [2, 'Elemento 2', '—'],
-        [3, 'Elemento 3', '—'],
-      ];
-    }
-    const ws = XLSX.utils.aoa_to_sheet(data);
-    ws['!cols'] = [{wch:30},{wch:30},{wch:20},{wch:15}];
+    const lines = content.split('\n').filter(l=>l.trim());
+    const data = lines.map(line => line.split('|').map(cell => cell.trim()));
+    const ws = XLSX.utils.aoa_to_sheet(data.length > 0 ? data : [['Datos', 'del', 'informe'],[content.substring(0,100),'','']]);
+    ws['!cols'] = data[0] ? data[0].map(() => ({wch:20})) : [{wch:40}];
     XLSX.utils.book_append_sheet(wb, ws, 'JARVIS');
     const wbout = XLSX.write(wb, {bookType:'xlsx', type:'array'});
     const blob = new Blob([wbout], {type:'application/octet-stream'});
     const xlUrl = URL.createObjectURL(blob);
-    const xlA = document.createElement('a'); xlA.href=xlUrl; xlA.download='jarvis-reporte.xlsx';
+    const xlA = document.createElement('a'); xlA.href=xlUrl; xlA.download='jarvis-datos.xlsx';
     document.body.appendChild(xlA); xlA.click(); document.body.removeChild(xlA);
     setTimeout(()=>URL.revokeObjectURL(xlUrl),3000);
-    addMessage('ai', '✅ **Excel generado** y descargado correctamente.');
+    addMessage('ai', '✅ **Excel generado** con contenido de IA.');
+    addLog('Excel generado');
+    showToast('📊 Excel descargado');
+  } catch(e) {
+    generateExcelFixed(content);
+  }
+}
+
+function generateExcelFixed(content) {
+  try {
+    const wb = XLSX.utils.book_new();
+    const data = [['Datos generados por J.A.R.V.I.S'],[''],['Contenido:'],[content.substring(0,500)],[],['Generado:', new Date().toLocaleString('es-MX')]];
+    const ws = XLSX.utils.aoa_to_sheet(data);
+    XLSX.utils.book_append_sheet(wb, ws, 'JARVIS');
+    const wbout = XLSX.write(wb, {bookType:'xlsx', type:'array'});
+    const blob = new Blob([wbout], {type:'application/octet-stream'});
+    const xlUrl = URL.createObjectURL(blob);
+    const xlA = document.createElement('a'); xlA.href=xlUrl; xlA.download='jarvis-datos.xlsx';
+    document.body.appendChild(xlA); xlA.click(); document.body.removeChild(xlA);
+    setTimeout(()=>URL.revokeObjectURL(xlUrl),3000);
+    addMessage('ai', '✅ **Excel generado**.');
     addLog('Excel generado');
     showToast('📊 Excel descargado');
   } catch(e) {
@@ -919,9 +978,9 @@ async function generateImage(userPrompt) {
       <div class="msg-label">J.A.R.V.I.S</div>
       <div class="bubble ai">
         🎨 Generando imagen con Pollinations AI...<br>
-        <small style="color:var(--text-dim);font-size:11px;">Esto puede tardar 10-20 segundos</small><br><br>
+        <small style="color:var(--text-dim);font-size:11px;">Puede tardar hasta 30 segundos</small><br><br>
         <div style="height:3px;background:var(--primary-dim);border-radius:2px;overflow:hidden;width:200px;">
-          <div id="img-bar-fill" style="height:100%;width:0%;background:var(--primary);border-radius:2px;transition:width 18s linear;"></div>
+          <div id="img-bar-fill" style="height:100%;width:0%;background:var(--primary);border-radius:2px;transition:width 28s linear;"></div>
         </div>
       </div>
     </div>`;
@@ -931,10 +990,7 @@ async function generateImage(userPrompt) {
 
   const encoded = encodeURIComponent(userPrompt);
   const seed = Math.floor(Math.random() * 99999);
-  const imgUrl = `https://image.pollinations.ai/prompt/${encoded}?width=768&height=512&seed=${seed}&nologo=true&model=flux`;
-
-  const imgEl = new Image();
-  imgEl.crossOrigin = 'anonymous';
+  const imgUrl = `https://image.pollinations.ai/prompt/${encoded}?width=768&height=512&seed=${seed}&nologo=true`;
 
   const done = (success) => {
     const el = document.getElementById('img-placeholder');
@@ -945,12 +1001,13 @@ async function generateImage(userPrompt) {
         <div class="msg-inner">
           <div class="msg-label">J.A.R.V.I.S</div>
           <div class="bubble ai">
-            ✅ <strong>Imagen generada</strong> con Pollinations AI<br>
-            <em style="font-size:12px;color:var(--text-dim);">📝 ${userPrompt}</em><br><br>
-            <img src="${imgUrl}" alt="imagen" onclick="openImgModal('${imgUrl}')"
-              style="max-width:320px;border-radius:6px;border:1px solid var(--border);cursor:pointer;display:block;margin-top:4px;"/><br>
+            ✅ <strong>Imagen generada</strong><br>
+            <em style="font-size:12px;color:var(--text-dim);">${userPrompt}</em><br><br>
+            <a href="${imgUrl}" target="_blank">
+              <img src="${imgUrl}" alt="${userPrompt}" onclick="openImgModal('${imgUrl}')"
+                style="max-width:320px;border-radius:6px;border:1px solid var(--border);cursor:pointer;display:block;margin-top:4px;"/></a><br>
             <a href="${imgUrl}" target="_blank"
-              style="font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--primary);text-decoration:none;border:1px solid var(--border);padding:4px 10px;border-radius:4px;display:inline-block;margin-top:6px;">⬇ Abrir / Descargar</a>
+              style="font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--primary);text-decoration:none;border:1px solid var(--border);padding:4px 10px;border-radius:4px;display:inline-block;">⬇ Abrir imagen</a>
           </div>
         </div>`;
       addLog('Imagen lista');
@@ -961,19 +1018,22 @@ async function generateImage(userPrompt) {
         <div class="msg-inner">
           <div class="msg-label">J.A.R.V.I.S</div>
           <div class="bubble ai">
-            ❌ No se pudo cargar la imagen.<br>
+            ⚠️ La imagen está generándose en Pollinations.<br>
             <a href="${imgUrl}" target="_blank"
-              style="font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--primary);">→ Ver imagen directamente en Pollinations</a>
+              style="font-family:'Share Tech Mono',monospace;font-size:12px;color:var(--primary);">→ Abrir imagen en nueva pestaña</a><br><br>
+            <small style="color:var(--text-dim);">A veces Pollinations tarda más de lo normal. Si no ves la imagen, haz clic en el enlace.</small>
           </div>
         </div>`;
-      addLog('Error imagen');
+      addLog('Imagen: abrir enlace');
     }
     el.removeAttribute('id');
     msgs.scrollTop = msgs.scrollHeight;
   };
 
-  const timer = setTimeout(() => done(false), 45000);
-  imgEl.onload  = () => { clearTimeout(timer); done(true); };
+  // Try to load the image, with fallback
+  const timer = setTimeout(() => done(false), 30000);
+  const imgEl = new Image();
+  imgEl.onload = () => { clearTimeout(timer); done(true); };
   imgEl.onerror = () => { clearTimeout(timer); done(false); };
   imgEl.src = imgUrl;
 }

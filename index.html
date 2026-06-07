@@ -962,9 +962,13 @@ async function sendMessage(){
     if(Array.isArray(msgContent)) apiMessages[apiMessages.length-1].content = msgContent;
     const maxTok = Array.isArray(msgContent) ? 2000 : 1000;
     const res=await fetch(SERVER+'/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({system:buildSystem(),messages:apiMessages,max_tokens:maxTok})});
+    if(!res.ok) throw new Error('Servidor respondió '+res.status+' '+(res.statusText||''));
     const data=await res.json(); removeTyping();
     const reply=data.content?.[0]?.text;
-    if(!reply) throw new Error('Sin respuesta');
+    if(!reply) {
+      addLog('Respuesta inesperada: '+JSON.stringify(data).substring(0,200));
+      throw new Error('Sin respuesta del servidor');
+    }
     lastAIResponse = reply;
     sessionHistory.push({role:'assistant',content:reply});
     const fact=extractFacts(text);

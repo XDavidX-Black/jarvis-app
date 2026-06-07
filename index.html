@@ -1656,6 +1656,7 @@ let hologramActive = false;
 let hologramCanvas, hCtx, hAnimId;
 let mouseX = 0.5, mouseY = 0.5;
 let hParticles = [];
+let hDataStream = [];
 let holoState = 'idle'; // 'idle' | 'processing' | 'speaking'
 let holoStateTimer = null;
 
@@ -1684,13 +1685,27 @@ function initHologram() {
   window.addEventListener('resize', resize);
   // Partículas orbitales
   hParticles = [];
-  for(let i = 0; i < 40; i++) {
+  for(let i = 0; i < 60; i++) {
     hParticles.push({
       angle: Math.random() * Math.PI * 2,
-      radius: 20 + Math.random() * 40,
+      radius: 15 + Math.random() * 55,
+      speed: (0.001 + Math.random() * 0.01) * (Math.random() > 0.5 ? 1 : -1),
+      size: 1 + Math.random() * 2.5,
+      opacity: 0.2 + Math.random() * 0.6,
+      orbitTilt: (Math.random() - 0.5) * 0.6,
+      phase: Math.random() * Math.PI * 2
+    });
+  }
+  // Datos flotantes (partículas que suben)
+  hDataStream = [];
+  for(let i = 0; i < 20; i++) {
+    hDataStream.push({
+      x: Math.random(),
+      y: Math.random(),
+      size: 0.5 + Math.random() * 1.5,
       speed: 0.002 + Math.random() * 0.008,
-      size: 1 + Math.random() * 2,
-      opacity: 0.3 + Math.random() * 0.5
+      opacity: 0.1 + Math.random() * 0.3,
+      char: String.fromCharCode(48 + Math.floor(Math.random() * 74))
     });
   }
   drawHologram();
@@ -1702,88 +1717,201 @@ function drawHologram() {
   const cx = w * 0.5, cy = h * 0.5;
   hCtx.clearRect(0, 0, w, h);
 
-  // Obtener colores del tema
   const primary = getComputedStyle(document.documentElement).getPropertyValue('--primary').trim() || '#00d4ff';
-  const dim = getComputedStyle(document.documentElement).getPropertyValue('--text-dim').trim() || 'rgba(0,0,0,0.3)';
+  const bg = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim() || '#0a0a1a';
 
   const state = holoState;
   const now = Date.now();
   const speedMul = state === 'processing' ? 3 : state === 'speaking' ? 2 : 1;
+  const ringR = Math.min(w, h) * 0.2;
+  const flicker = 0.92 + Math.sin(now * 0.013) * 0.08;
 
-  // Anillo base
-  const ringR = Math.min(w, h) * 0.18;
+  // ---- HEXAGONAL GRID BASE ----
+  hCtx.save();
+  hCtx.globalAlpha = 0.06 * flicker;
+  hCtx.strokeStyle = primary;
+  hCtx.lineWidth = 0.5;
+  const gridR = ringR * 1.6;
+  for(let ring = 1; ring <= 4; ring++) {
+    const r = gridR * ring / 4;
+    const sides = 6;
+    hCtx.beginPath();
+    for(let i = 0; i <= sides; i++) {
+      const a = (i / sides) * Math.PI * 2 - Math.PI / 6 + Math.sin(now / 2000) * 0.05;
+      const x = cx + Math.cos(a) * r;
+      const y = cy + Math.sin(a) * r * 0.4;
+      i === 0 ? hCtx.moveTo(x, y) : hCtx.lineTo(x, y);
+    }
+    hCtx.stroke();
+  }
+  // Líneas radiales de la base
+  for(let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2 - Math.PI / 6 + Math.sin(now / 2000) * 0.05;
+    hCtx.beginPath();
+    hCtx.moveTo(cx, cy + ringR * 1.2);
+    hCtx.lineTo(cx + Math.cos(a) * gridR, cy + Math.sin(a) * gridR * 0.4 + ringR * 1.2);
+    hCtx.stroke();
+  }
+  hCtx.restore();
+
+  // ---- ANILLOS 3D ----
+  const tilt = 0.3;
+  for(let r = 0; r < 3; r++) {
+    const rotOffset = r * Math.PI * 2 / 3;
+    const rot = now / (4000 / speedMul) + rotOffset;
+    hCtx.beginPath();
+    for(let i = 0; i <= 40; i++) {
+      const a = (i / 40) * Math.PI * 2;
+      const px = cx + Math.cos(a) * ringR * (r * 0.3 + 0.5);
+      const py = cy + Math.sin(a + rot) * ringR * tilt * (r * 0.3 + 0.5);
+      i === 0 ? hCtx.moveTo(px, py) : hCtx.lineTo(px, py);
+    }
+    hCtx.strokeStyle = primary;
+    hCtx.globalAlpha = (0.08 + r * 0.04) * flicker * (state !== 'idle' ? 1.5 : 1);
+    hCtx.lineWidth = 1 - r * 0.2;
+    hCtx.stroke();
+  }
+
+  // ---- ANILLO CENTRAL PRINCIPAL ----
   hCtx.beginPath();
   hCtx.arc(cx, cy, ringR, 0, Math.PI * 2);
   hCtx.strokeStyle = primary;
-  hCtx.globalAlpha = (0.15 + Math.sin(now / 2000) * 0.05) * (state !== 'idle' ? 2 : 1);
-  hCtx.lineWidth = state === 'processing' ? 2.5 : 1.5;
+  hCtx.globalAlpha = (0.2 + Math.sin(now / 2000) * 0.08) * flicker * (state !== 'idle' ? 1.5 : 1);
+  hCtx.lineWidth = state === 'processing' ? 3 : 2;
   hCtx.stroke();
-  hCtx.globalAlpha = 1;
 
-  // Anillo rotatorio (más rápido al procesar)
-  const rot = now / (3000 / speedMul);
+  // ---- ANILLO ROTATORIO ELÍPTICO ----
+  const rot2 = now / (2500 / speedMul);
   hCtx.beginPath();
-  hCtx.arc(cx + Math.sin(rot) * (state === 'processing' ? 10 : 5), cy + Math.cos(rot * 0.7) * (state === 'processing' ? 10 : 5), ringR * 0.6, 0, Math.PI * 2);
+  for(let i = 0; i <= 40; i++) {
+    const a = (i / 40) * Math.PI * 2;
+    const px = cx + Math.cos(a + rot2) * ringR * 1.1;
+    const py = cy + Math.sin(a + rot2 * 0.7) * ringR * 0.35;
+    i === 0 ? hCtx.moveTo(px, py) : hCtx.lineTo(px, py);
+  }
   hCtx.strokeStyle = primary;
-  hCtx.globalAlpha = state === 'processing' ? 0.3 : 0.1;
-  hCtx.lineWidth = state === 'processing' ? 1.5 : 1;
-  hCtx.setLineDash(state === 'speaking' ? [2, 4] : [4, 8]);
+  hCtx.globalAlpha = (0.15 + Math.sin(now / 1500) * 0.05) * flicker * (state === 'processing' ? 2 : 1);
+  hCtx.lineWidth = state === 'processing' ? 2 : 1.5;
+  hCtx.setLineDash(state === 'speaking' ? [3, 6] : [6, 10]);
   hCtx.stroke();
   hCtx.setLineDash([]);
-  hCtx.globalAlpha = 1;
 
-  // Partículas orbitales
+  // ---- PARTÍCULAS ORBITALES ----
   const particleSpeed = speedMul;
   for(const p of hParticles) {
     p.angle += p.speed * particleSpeed;
-    const waveAmp = state === 'speaking' ? 15 + Math.sin(now / 300 + p.angle * 3) * 8 : 8;
     const x = cx + Math.cos(p.angle) * p.radius;
-    const y = cy + Math.sin(p.angle) * p.radius * 0.5 + Math.sin(p.angle * 2) * waveAmp;
+    const y = cy + Math.sin(p.angle + p.orbitTilt) * p.radius * 0.4 + Math.sin(p.angle * 2 + p.phase) * 10;
+    const sizeMult = state === 'processing' ? 1.8 : state === 'speaking' ? 1.4 : 1;
     hCtx.beginPath();
-    hCtx.arc(x, y, p.size * (state === 'processing' ? 1.5 : 1), 0, Math.PI * 2);
-    hCtx.fillStyle = primary;
-    hCtx.globalAlpha = p.opacity * (0.7 + Math.sin(now / 1000 + p.angle) * 0.3) * (state !== 'idle' ? 1.5 : 1);
+    hCtx.arc(x, y, p.size * sizeMult, 0, Math.PI * 2);
+    const glow = hCtx.createRadialGradient(x, y, 0, x, y, p.size * sizeMult * 3);
+    glow.addColorStop(0, primary);
+    glow.addColorStop(1, 'transparent');
+    hCtx.fillStyle = glow;
+    hCtx.globalAlpha = p.opacity * flicker * (state !== 'idle' ? 1.6 : 1);
     hCtx.fill();
   }
   hCtx.globalAlpha = 1;
 
-  // OJOS holográficos que siguen al mouse
-  const eyeOffsetX = 12, eyeOffsetY = -5;
-  const eyeR = 6, pupilR = 2.5;
+  // ---- DATA STREAM (dígitos flotantes) ----
+  hCtx.font = '9px Share Tech Mono, monospace';
+  hCtx.fillStyle = primary;
+  for(const d of hDataStream) {
+    d.y -= d.speed * speedMul;
+    if(d.y < -0.05) { d.y = 1.05; d.x = Math.random(); d.char = String.fromCharCode(48 + Math.floor(Math.random() * 74)); }
+    hCtx.globalAlpha = d.opacity * flicker * (0.5 + Math.sin(now / 800 + d.x * 10) * 0.5);
+    hCtx.fillText(d.char, cx + (d.x - 0.5) * ringR * 1.4, d.y * h);
+  }
+  hCtx.globalAlpha = 1;
+
+  // ---- SCAN LINE (barrido horizontal) ----
+  const scanY = ((now % 3000) / 3000) * h;
+  hCtx.beginPath();
+  hCtx.moveTo(cx - ringR * 1.2, scanY);
+  hCtx.lineTo(cx + ringR * 1.2, scanY);
+  hCtx.strokeStyle = primary;
+  hCtx.globalAlpha = 0.06 + Math.sin(now / 100) * 0.04;
+  hCtx.lineWidth = 1;
+  hCtx.stroke();
+  hCtx.globalAlpha = 1;
+
+  // ---- OJOS HOLOGRÁFICOS (mejorados) ----
+  const eyeOffsetX = 16, eyeOffsetY = -4;
+  const eyeR = 8, pupilR = 3;
   for(const side of [-1, 1]) {
     const ex = cx + side * eyeOffsetX;
     const ey = cy + eyeOffsetY;
+    // Sombra externa
+    hCtx.beginPath();
+    hCtx.arc(ex, ey, eyeR + 2, 0, Math.PI * 2);
+    hCtx.strokeStyle = primary;
+    hCtx.globalAlpha = 0.08 * flicker;
+    hCtx.lineWidth = 1;
+    hCtx.stroke();
     // Esclerótica
     hCtx.beginPath();
     hCtx.arc(ex, ey, eyeR, 0, Math.PI * 2);
     hCtx.fillStyle = primary;
-    hCtx.globalAlpha = 0.3;
+    hCtx.globalAlpha = 0.25 * flicker;
     hCtx.fill();
+    hCtx.strokeStyle = primary;
+    hCtx.globalAlpha = 0.4 * flicker;
+    hCtx.lineWidth = 1;
+    hCtx.stroke();
     hCtx.globalAlpha = 1;
-    // Pupila (sigue mouse)
-    const dx = (mouseX - 0.5) * 3;
-    const dy = (mouseY - 0.5) * 3;
+    // Pupila
+    const dx = (mouseX - 0.5) * 4;
+    const dy = (mouseY - 0.5) * 4;
+    const pupGlow = hCtx.createRadialGradient(ex + dx, ey + dy, 0, ex + dx, ey + dy, pupilR * 3);
+    pupGlow.addColorStop(0, primary);
+    pupGlow.addColorStop(1, 'transparent');
     hCtx.beginPath();
     hCtx.arc(ex + dx, ey + dy, pupilR, 0, Math.PI * 2);
     hCtx.fillStyle = primary;
-    hCtx.globalAlpha = 0.9;
+    hCtx.globalAlpha = 0.9 * flicker;
     hCtx.fill();
     hCtx.globalAlpha = 1;
+    // Brillo de pupila
+    hCtx.beginPath();
+    hCtx.arc(ex + dx - 1, ey + dy - 1, pupilR * 0.3, 0, Math.PI * 2);
+    hCtx.fillStyle = '#fff';
+    hCtx.globalAlpha = 0.6;
+    hCtx.fill();
+    hCtx.globalAlpha = 1;
+    // Párpado (parpadeo ocasional)
+    if(Math.sin(now / 3000) > 0.97) {
+      hCtx.beginPath();
+      hCtx.arc(ex, ey, eyeR, Math.PI, 0);
+      hCtx.fillStyle = bg;
+      hCtx.globalAlpha = 0.8;
+      hCtx.fill();
+      hCtx.globalAlpha = 1;
+    }
   }
 
-  // Brillo central pulsante (más intenso al procesar/hablar)
-  const pulseAmp = state === 'processing' ? 0.15 : state === 'speaking' ? 0.12 : 0.08;
+  // ---- BRILLO CENTRAL PULSANTE ----
+  const pulseAmp = state === 'processing' ? 0.2 : state === 'speaking' ? 0.15 : 0.1;
   const pulseSpeed = state === 'processing' ? 600 : state === 'speaking' ? 800 : 1200;
   const pulse = pulseAmp + Math.sin(now / pulseSpeed) * (pulseAmp * 0.5);
-  const grad = hCtx.createRadialGradient(cx, cy, 0, cx, cy, ringR * 0.3);
+  const grad = hCtx.createRadialGradient(cx, cy, 0, cx, cy, ringR * 0.4);
   grad.addColorStop(0, primary);
+  grad.addColorStop(0.5, primary);
   grad.addColorStop(1, 'transparent');
   hCtx.beginPath();
-  hCtx.arc(cx, cy, ringR * 0.3, 0, Math.PI * 2);
+  hCtx.arc(cx, cy, ringR * 0.4, 0, Math.PI * 2);
   hCtx.fillStyle = grad;
-  hCtx.globalAlpha = pulse;
+  hCtx.globalAlpha = pulse * flicker;
   hCtx.fill();
   hCtx.globalAlpha = 1;
+
+  // ---- FLICKER GLOBAL (líneas de ruido) ----
+  if(Math.random() > 0.97) {
+    hCtx.fillStyle = primary;
+    hCtx.globalAlpha = 0.03;
+    hCtx.fillRect(0, Math.random() * h, w, 1 + Math.random() * 3);
+    hCtx.globalAlpha = 1;
+  }
 
   hAnimId = requestAnimationFrame(drawHologram);
 }

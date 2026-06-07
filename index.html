@@ -298,8 +298,23 @@
 
     /* menu toggle */
     .menu-toggle { display:flex !important; }
+    .welcome { padding:20px 16px; }
+    .welcome h2 { font-size:18px; letter-spacing:3px; }
+    .dash-card { padding:12px; }
+    .chat-table { display:block; overflow-x:auto; }
   }
-
+  @media (max-width: 400px) {
+    header { padding:8px; }
+    .logo-text { font-size:12px; letter-spacing:2px; }
+    .logo svg { width:28px; height:28px; }
+    .menu-toggle { width:32px; height:32px; }
+    .welcome h2 { font-size:16px; letter-spacing:2px; }
+    .welcome { padding:16px 12px; }
+    .bubble { font-size:13px; padding:7px 10px; }
+    .dash-time { font-size:24px; }
+    .dash-grid { gap:6px; }
+    .chat-table { font-size:11px; }
+  }
   @media (min-width: 641px) and (max-width: 1024px) {
     .sys-panel { display:none; }
     header { padding:12px 16px; }

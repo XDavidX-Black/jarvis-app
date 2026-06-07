@@ -631,7 +631,7 @@
 <script>
 const SERVER = "https://jarvis-server-production-8be2.up.railway.app";
 let memory = { name:"", job:"", interests:"", sessions:0, facts:[], chatHistory:[] };
-let hfToken = localStorage.getItem('jarvis_hf_token') || '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';
+let hfToken = localStorage.getItem('jarvis_hf_token') || '';
 let mode = 'general';
 let sessionHistory = [];
 let loading = false;
@@ -814,10 +814,10 @@ async function loadMemory() {
     await fetch(SERVER+'/memory',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessions:memory.sessions})});
     updateUI();
     if(!memory.name){ document.getElementById('setup-modal').style.display='flex'; }
-    else{ addLog('Bienvenido, '+memory.name); setTimeout(()=>speak(`Bienvenido de nuevo ${memory.name}. Sesión ${memory.sessions} iniciada.`),500); }
+    else{ document.getElementById('welcome-msg').textContent='Sesión #'+memory.sessions+'. ¿En qué puedo asistirte?'; addLog('Bienvenido, '+memory.name); setTimeout(()=>speak(`Bienvenido de nuevo ${memory.name}. Sesión ${memory.sessions} iniciada.`),500); }
   }catch(e){
     document.getElementById('setup-modal').style.display='flex';
-    document.getElementById('welcome-msg').textContent='Sistemas en línea. ¿En qué puedo asistirte?';
+    document.getElementById('welcome-msg').textContent='Modo local — configura tu perfil.';
   }
 }
 
@@ -829,7 +829,7 @@ async function saveSetup() {
   const hf=document.getElementById('setup-hf').value.trim();
   memory.name=name; memory.job=job; memory.interests=interests;
   if(hf) { hfToken=hf; localStorage.setItem('jarvis_hf_token', hf); updateImgEngineUI(); }
-  await fetch(SERVER+'/memory',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,job,interests})});
+  await fetch(SERVER+'/memory',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,job,interests})}).catch(function(){});
   document.getElementById('setup-modal').style.display='none';
   updateUI(); addLog('Perfil: '+name);
   setTimeout(()=>speak(`Perfecto ${name}. Soy J.A.R.V.I.S., tu asistente personal. Listo para servirte.`),300);
@@ -837,7 +837,7 @@ async function saveSetup() {
 
 async function clearMemory() {
   if(confirm('¿Borrar toda la memoria?')){
-    await fetch(SERVER+'/memory',{method:'DELETE'});
+    await fetch(SERVER+'/memory',{method:'DELETE'}).catch(function(){});
     memory={name:"",job:"",interests:"",sessions:0,facts:[],chatHistory:[]};
     updateUI(); document.getElementById('setup-modal').style.display='flex';
   }
@@ -861,8 +861,11 @@ function addMessage(role,text,imgUrl){
   let imgHTML = imgUrl ? `<img class="msg-img" src="${imgUrl}" alt="imagen generada" onclick="openImgModal('${imgUrl}')"/>` : '';
   const safeText = text.replace(/`/g,'\\`').replace(/\$/g,'\\$');
   const actions = role==='ai' ? `<div class="msg-actions"><span class="msg-action" onclick="copyText(\`${safeText.substring(0,500)}\')" title="Copiar">📋</span><span class="msg-action" onclick="translateMsg(this)" title="Traducir">🌐</span></div>` : '';
-  div.innerHTML=`<div class="avatar ${role}">${role==='ai'?'AI':'USR'}</div><div class="msg-inner"><div class="msg-label">${role==='ai'?'J.A.R.V.I.S':'TÚ'}${actions}</div><div class="bubble ${role}">${fmt(text)}${imgHTML}</div></div>`;
-  msgs.appendChild(div); msgs.scrollTop=msgs.scrollHeight;
+  const ts = new Date().toLocaleTimeString('es-MX', {hour:'2-digit',minute:'2-digit'});
+  div.innerHTML=`<div class="avatar ${role}">${role==='ai'?'AI':'USR'}</div><div class="msg-inner"><div class="msg-label">${role==='ai'?'J.A.R.V.I.S':'TÚ'} <span style="font-weight:400;font-size:9px;opacity:0.4;margin-left:4px;">${ts}</span>${actions}</div><div class="bubble ${role}">${fmt(text)}${imgHTML}</div></div>`;
+  msgs.appendChild(div);
+  const isNearBottom = msgs.scrollTop + msgs.clientHeight >= msgs.scrollHeight - 80;
+  if(isNearBottom) msgs.scrollTop=msgs.scrollHeight;
   // Auto-hablar mensajes del AI (excepto metadatos cortos)
   if(role==='ai' && text.length > 15 && !text.startsWith('🎨') && !text.startsWith('⏳') && !text.startsWith('📱') && !text.startsWith('📋') && !text.startsWith('⚠️') && !text.startsWith('❌') && !text.startsWith('✅') && !/^[\d\s:]+$/.test(text)) {
     speak(text);
@@ -964,7 +967,7 @@ async function sendMessage(){
     const maxTok = Array.isArray(msgContent) ? 1000 : 512;
     const res=await fetch(SERVER+'/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({system:buildSystem(),messages:apiMessages,max_tokens:maxTok})});
     const data=await res.json(); removeTyping();
-    if(!res.ok) throw new Error(data.error || 'Servidor respondió '+res.status);
+    if(!res.ok) { const e=new Error(data.error || 'Servidor respondió '+res.status); if(data.rateLimit) e.rateLimit=true; throw e; }
     const reply=data.content?.[0]?.text;
     if(!reply) {
       addLog('Respuesta inesperada: '+JSON.stringify(data).substring(0,200));
@@ -976,7 +979,7 @@ async function sendMessage(){
     const histEntry=`Usuario: "${text.substring(0,50)}"`;
     if(fact) memory.facts=[...memory.facts,fact].slice(-20);
     memory.chatHistory=[...memory.chatHistory,histEntry].slice(-20);
-    fetch(SERVER+'/memory/fact',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({fact:fact||null,history:histEntry})});
+    fetch(SERVER+'/memory/fact',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({fact:fact||null,history:histEntry})}).catch(function(){});
     if(fact) updateUI();
     addMessage('ai',reply); addLog('Respuesta recibida'); speak(reply); playSound('receive'); setHoloState('speaking');
 
@@ -1008,6 +1011,11 @@ async function sendMessage(){
     if(wikiMatch) { searchWiki(wikiMatch[2]); }
     const exchMatch = lower.match(/(cambio|divisa|convierte)\s+(\d+(?:\.\d+)?)\s*(usd|eur|mxn|brl|gbp|jpy|cad|aud|clp|cop|ars|pen|uyu|try|rub|inr|cny|krw|chf|nzd|sek|nok|dkk|pln|czk|huf|ils|zar|sar|aed|sgd|hkd|twd|thb|myr|idr|php|vnd)\s*(?:a|para|en)\s*(usd|eur|mxn|brl|gbp|jpy|cad|aud|clp|cop|ars|pen|uyu|try|rub|inr|cny|krw|chf|nzd|sek|nok|dkk|pln|czk|huf|ils|zar|sar|aed|sgd|hkd|twd|thb|myr|idr|php|vnd)/i);
     if(exchMatch) { getExchange(exchMatch[2], exchMatch[3], exchMatch[5]); }
+    const unitMatch = lower.match(/(convierte|convertir)\s+(\d+(?:\.\d+)?)\s*(km|millas?|kg|libras?|c|f|litros?|galones?|metros?|pies|cm|pulgadas?)\s+(?:a|para)\s+(km|millas?|kg|libra?s?|c|f|litros?|galones?|metros?|pies|cm|pulgadas?)/i);
+    if(unitMatch) {
+      const unitMap={km:'km',millas:'millas',milla:'millas',kg:'kg',libras:'libras',libra:'libras',c:'c',f:'f',litros:'litros',litro:'litros',galones:'galones',galon:'galones',metros:'metros',metro:'metros',pies:'pies',pie:'pies',cm:'cm',pulgada:'pulgadas',pulgadas:'pulgadas'};
+      convertUnits(unitMatch[2], unitMap[unitMatch[3].toLowerCase()]||unitMatch[3], unitMap[unitMatch[4].toLowerCase()]||unitMatch[4]);
+    }
     if(/^(genera|crea)\s*(una\s*)?contraseña|password/i.test(lower)) { generatePassword(); }
     const calcMatch = lower.match(/^(cuánto es|calcula|calc|cuanto es)\s+(.+)/i);
     if(calcMatch) { safeEval(calcMatch[2]); }
@@ -1059,7 +1067,7 @@ async function sendMessage(){
     // Guardar sesión en localStorage
     saveSession();
   }catch(err){
-    removeTyping(); addMessage('ai','⚠️ **Error:** '+err.message+'\n_Reintenta o escribe "hola" para probar._'); addLog('Error: '+err.message); playSound('error'); setHoloState('idle');
+    removeTyping(); const isRL = err.rateLimit || (err.message && /rate.limit|429|espera/i.test(err.message)); addMessage('ai','⚠️ **Error:** '+err.message+(isRL?'\n_⏳ Demasiadas peticiones. Espera un minuto y reintenta._':'\n_Reintenta o escribe "hola" para probar._')); addLog('Error: '+err.message); playSound('error'); setHoloState('idle');
   }
   loading=false; document.getElementById('send-btn').disabled=false; inp.focus();
 }
@@ -1548,6 +1556,23 @@ function getExchange(amount, from, to) {
     })
     .catch(function(){ addMessage('ai','❌ Error consultando tipo de cambio.'); });
 }
+function convertUnits(value, from, to) {
+  const conversions = {
+    'km-millas':v=>v*0.621371,'millas-km':v=>v/0.621371,
+    'kg-libras':v=>v*2.20462,'libras-kg':v=>v/2.20462,
+    'c-f':v=>v*9/5+32,'f-c':v=>(v-32)*5/9,
+    'litros-galones':v=>v*0.264172,'galones-litros':v=>v/0.264172,
+    'metros-pies':v=>v*3.28084,'pies-metros':v=>v/3.28084,
+    'cm-pulgadas':v=>v/2.54,'pulgadas-cm':v=>v*2.54
+  };
+  const key = (from+'-'+to).toLowerCase();
+  const fn = conversions[key];
+  if(!fn) { addMessage('ai','❌ Conversión no soportada. Prueba: km a millas, kg a libras, c a f, litros a galones, metros a pies, cm a pulgadas.'); return; }
+  const result = fn(parseFloat(value));
+  if(isNaN(result)) { addMessage('ai','❌ Valor inválido.'); return; }
+  addMessage('ai','📐 **' + value + ' ' + from.toUpperCase() + '** = **' + result.toFixed(4) + ' ' + to.toUpperCase() + '**');
+  addLog('Unidades: ' + value + ' ' + from + ' → ' + to);
+}
 function generatePassword() {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+-=[]{}|;:,.<>?';
   let pwd = '';
@@ -1906,7 +1931,7 @@ async function generateImage(userPrompt, skipUserMsg) {
   addLog('Prompt original: ' + userPrompt.substring(0,80));
   addLog('Prompt mejorado: ' + enhanced.substring(0,80));
   // 1) HF directo desde el navegador (si hay token válido)
-  if(hfToken && !hfToken.startsWith('hf_krsj')) {
+  if(hfToken) {
     try {
       await generateImageHF(enhanced);
       return;
@@ -2088,7 +2113,7 @@ async function getWeather() {
   try {
     let lat, lon;
     try {
-      const pos = await new Promise((ok,err)=>navigator.geolocation.getCurrentPosition(ok,err,{timeout:5000,enableHighAccuracy:true}));
+      const pos = await new Promise((ok,err)=>navigator.geolocation.getCurrentPosition(ok,err,{timeout:5000,enableHighAccuracy:false}));
       lat = pos.coords.latitude; lon = pos.coords.longitude;
     } catch(e) {
       addLog('GPS no disponible, usando IP...');
@@ -2687,7 +2712,7 @@ function clearHighlights() {
 // Atajo Ctrl+F
 document.addEventListener('keydown', function(e) {
   if(e.ctrlKey && e.key === 'f') { e.preventDefault(); toggleSearch(); }
-  if(e.key === 'Escape') { closeSearch(); }
+  if(e.key === 'Escape') { closeSearch(); const sm=document.getElementById('setup-modal'); if(sm && sm.style.display==='flex') sm.style.display='none'; }
 });
 
 // Sidebar toggle para móvil

@@ -968,19 +968,34 @@ function generateExcelFixed(content) {
 }
 
 /* =========================================================
-   FUNCIÓN: Mostrar imagen en el chat
+   FUNCIÓN: Mostrar imagen en el chat (DOM API, 100% reliable)
    ========================================================= */
 function displayImageInChat(userPrompt, imgUrl, engine) {
-  const imgHtml = `<a href="${imgUrl}" target="_blank">
-    <img src="${imgUrl}" alt="${userPrompt.replace(/"/g,'&quot;')}"
-      onerror="this.outerHTML='<span style=color:var(--accent)>&#9888; No se pudo cargar, haz clic en el enlace de abajo para abrirla.</span>'"
-      style="max-width:320px;border-radius:6px;border:1px solid var(--border);cursor:pointer;display:block;margin-top:6px;"
-      onclick="openImgModal('${imgUrl}')"/>
-  </a>
-  <br>
-  <a href="${imgUrl}" target="_blank"
-    style="font-family:Share Tech Mono,monospace;font-size:11px;color:var(--primary);text-decoration:none;border:1px solid var(--border);padding:5px 12px;border-radius:4px;display:inline-block;">⬇ Abrir imagen en nueva pestaña</a>`;
-  addMessage('ai', `🎨 **Imagen generada:** ${userPrompt}\n\n_ Motor: ${engine}_\n\n${imgHtml}`);
+  showMessages();
+  const msgs = document.getElementById('messages');
+  const msgDiv = document.createElement('div'); msgDiv.className = 'msg ai';
+  const avatar = document.createElement('div'); avatar.className = 'avatar ai'; avatar.textContent = 'AI';
+  const inner = document.createElement('div'); inner.className = 'msg-inner';
+  const label = document.createElement('div'); label.className = 'msg-label'; label.textContent = 'J.A.R.V.I.S';
+  const bubble = document.createElement('div'); bubble.className = 'bubble ai';
+  bubble.innerHTML = `🎨 <strong>Imagen generada:</strong> ${userPrompt.replace(/</g,'&lt;').replace(/>/g,'&gt;')}<br><small style="color:var(--text-dim);font-size:10px;">${engine}</small>`;
+  const img = document.createElement('img');
+  img.src = imgUrl; img.alt = userPrompt;
+  img.style.cssText = 'max-width:320px;border-radius:6px;border:1px solid var(--border);cursor:pointer;display:block;margin-top:6px;';
+  img.onclick = function(){ openImgModal(imgUrl); };
+  img.onerror = function(){ fallback.style.display = 'block'; img.style.display = 'none'; };
+  const fallback = document.createElement('div');
+  fallback.style.cssText = 'display:none;padding:12px;border:1px dashed var(--border);border-radius:6px;text-align:center;margin-top:4px;';
+  fallback.innerHTML = '⏳ Generando... <a href="'+imgUrl+'" target="_blank" style="color:var(--primary);">Abrir enlace directo</a>';
+  const link = document.createElement('a');
+  link.href = imgUrl; link.target = '_blank';
+  link.textContent = '⬇ Abrir imagen en nueva pestaña';
+  link.style.cssText = 'font-family:Share Tech Mono,monospace;font-size:11px;color:var(--primary);text-decoration:none;border:1px solid var(--border);padding:5px 12px;border-radius:4px;display:inline-block;margin-top:6px;';
+  bubble.appendChild(img); bubble.appendChild(fallback); bubble.appendChild(document.createElement('br')); bubble.appendChild(link);
+  inner.appendChild(label); inner.appendChild(bubble);
+  msgDiv.appendChild(avatar); msgDiv.appendChild(inner);
+  msgs.appendChild(msgDiv); msgs.scrollTop = msgs.scrollHeight;
+  addLog('Imagen: '+engine);
 }
 
 function updateImgEngineUI() {
@@ -1016,47 +1031,14 @@ async function generateImage(userPrompt, skipUserMsg) {
   generateImagePollinations(userPrompt);
 }
 
-function generateImagePollinations(userPrompt, attempt) {
-  if(!attempt) attempt = 0;
+function generateImagePollinations(userPrompt) {
   const encoded = encodeURIComponent(userPrompt + ', high quality, detailed');
   const seed = Math.floor(Math.random() * 99999);
   const imgUrl = `https://image.pollinations.ai/prompt/${encoded}?width=768&height=512&seed=${seed}&nologo=true`;
-
-  showMessages();
-  const msgs = document.getElementById('messages');
-  const msgDiv = document.createElement('div');
-  msgDiv.className = 'msg ai';
-  msgDiv.innerHTML = `
-    <div class="avatar ai">AI</div>
-    <div class="msg-inner">
-      <div class="msg-label">J.A.R.V.I.S</div>
-      <div class="bubble ai">
-        🎨 <strong>Imagen:</strong> ${userPrompt}<br>
-        <small style="color:var(--text-dim);font-size:10px;">Pollinations</small><br>
-        <div id="poll-img-container-${seed}">
-          <img src="${imgUrl}" alt="${userPrompt}"
-            onerror="document.getElementById('poll-fallback-${seed}').style.display='block'; this.style.display='none';"
-            onload="document.getElementById('poll-fallback-${seed}').style.display='none'; this.style.display='block';"
-            style="max-width:320px;border-radius:6px;border:1px solid var(--border);cursor:pointer;display:block;margin-top:4px;"
-            onclick="openImgModal('${imgUrl}')"/>
-          <div id="poll-fallback-${seed}" style="display:none;padding:12px;border:1px dashed var(--border);border-radius:6px;text-align:center;margin-top:4px;">
-            ⏳ Generando... <a href="${imgUrl}" target="_blank" style="color:var(--primary);">Abrir enlace directo</a>
-          </div>
-        </div>
-        <br>
-        <a href="${imgUrl}" target="_blank"
-          style="font-family:Share Tech Mono,monospace;font-size:11px;color:var(--primary);text-decoration:none;border:1px solid var(--border);padding:5px 12px;border-radius:4px;display:inline-block;">⬇ Abrir imagen en nueva pestaña</a>
-        <br><small style="color:var(--text-dim);font-size:9px;">Si no carga, haz clic en "Abrir imagen"</small>
-      </div>
-    </div>`;
-  msgs.appendChild(msgDiv);
-  msgs.scrollTop = msgs.scrollHeight;
-  addLog('Imagen generada');
-  showToast('🎨 Imagen lista');
+  displayImageInChat(userPrompt, imgUrl, 'Pollinations');
 }
 
 async function generateImageHF(userPrompt) {
-  // HF no funciona desde Railway, usar Pollinations directamente
   generateImagePollinations(userPrompt);
 }
 

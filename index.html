@@ -833,9 +833,9 @@ function startWakeWord() {
 
   wakeRecognition = new SR();
   wakeRecognition.lang = 'es-MX';
-  wakeRecognition.continuous = true;
+  wakeRecognition.continuous = false;  // sesiones cortas evitan "network" error
   wakeRecognition.interimResults = true;
-  wakeRecognition.maxAlternatives = 5;
+  wakeRecognition.maxAlternatives = 3;
 
   wakeRecognition.onresult = function(e) {
     if(!wakeActive) return;
@@ -852,12 +852,13 @@ function startWakeWord() {
 
   wakeRecognition.onerror = function(e) {
     if(e.error === 'no-speech' || e.error === 'aborted') return;
+    if(e.error === 'network') { if(wakeActive) setTimeout(startWakeWord, 500); return; }
     showToast('❌ Error de voz: '+e.error);
     if(wakeActive) setTimeout(startWakeWord, 1500);
   };
 
   wakeRecognition.onend = function() {
-    if(wakeActive) setTimeout(startWakeWord, 300);
+    if(wakeActive) setTimeout(startWakeWord, 100);
   };
 
   try { wakeRecognition.start(); } catch(e) {}

@@ -639,6 +639,8 @@ let loading = false;
 let ttsEnabled = true;
 let naturalTTS = true;
 let ipDataCache = null;
+let weatherCache = null;
+let locationCache = null;
 let synth = window.speechSynthesis;
 let recognition = null;
 let isListening = false;
@@ -663,9 +665,13 @@ const modePrompts = {
 
 function buildSystem() {
   let s = modePrompts[mode];
+  const now = new Date();
+  s += `\nFecha y hora actual: ${now.toLocaleDateString('es-MX', { weekday:'long', year:'numeric', month:'long', day:'numeric' })} a las ${now.toLocaleTimeString('es-MX', { hour:'2-digit', minute:'2-digit', second:'2-digit', timeZone:'America/Cancun' })} (zona horaria: Quintana Roo, México).`;
   if(memory.name) s += ` El usuario se llama ${memory.name}.`;
   if(memory.job) s += ` Trabaja como: ${memory.job}.`;
   if(memory.interests) s += ` Intereses: ${memory.interests}.`;
+  if(typeof locationCache !== 'undefined' && locationCache) s += `\nUbicación del usuario: ${locationCache}.`;
+  if(typeof weatherCache !== 'undefined' && weatherCache) s += `\nClima actual del usuario: ${weatherCache}.`;
   if(memory.facts.length) s += `\nAprendido:\n${memory.facts.slice(-8).join('\n')}`;
   if(memory.chatHistory.length) s += `\nHistorial:\n${memory.chatHistory.slice(-4).join('\n')}`;
   s += `\nCAPACIDADES DE ARCHIVOS: Puedo generar PDF, Word, Excel e imágenes cuando el usuario lo solicite. Si el usuario pide un archivo, debo responder con el contenido COMPLETO y DETALLADO que debería ir dentro de ese archivo, no solo una descripción.`;
@@ -2142,6 +2148,8 @@ async function getWeather() {
     const windDir = c.wind_direction_10m != null ? ['N','NE','E','SE','S','SO','O','NO'][Math.round(c.wind_direction_10m/45)%8] : '';
     const d = w.daily || {};
     const location = [city, region, country].filter(Boolean).join(', ');
+    locationCache = location;
+    weatherCache = `${desc.replace(/^[^\s]+\s/,'')}, ${temp}, sensación ${feels}, humedad ${hum}, viento ${wind} ${windDir}`;
     let msg = '🌤️ **Clima en ' + location + '**\n\n**Ahora:**\n' + desc + '\n🌡️ **Temperatura:** ' + temp + ' (sensación ' + feels + ')\n💧 **Humedad:** ' + hum + '\n💨 **Viento:** ' + wind + ' ' + windDir + '\n☀️ **UV:** ' + uv + '\n';
     if(d.time) {
       msg += '\n**Pronóstico 3 días:**\n';

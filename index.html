@@ -379,7 +379,7 @@
         </div>
         <div class="voice-toggle">
           <span>Voz natural (Google)</span>
-          <div class="toggle" id="natural-tts-toggle" onclick="toggleNaturalTTS()"></div>
+          <div class="toggle on" id="natural-tts-toggle" onclick="toggleNaturalTTS()"></div>
         </div>
         <div class="voice-toggle" style="flex-wrap:wrap;gap:4px;">
           <span style="width:100%;font-size:11px;opacity:0.7;">Voz</span>
@@ -600,7 +600,7 @@ let mode = 'general';
 let sessionHistory = [];
 let loading = false;
 let ttsEnabled = true;
-let naturalTTS = false;
+let naturalTTS = true;
 let synth = window.speechSynthesis;
 let recognition = null;
 let isListening = false;
@@ -1958,7 +1958,7 @@ initLangs();
 if(localStorage.getItem('jarvis_sound') === '0') { soundEnabled = false; document.getElementById('sound-toggle').classList.remove('on'); }
 if(localStorage.getItem('jarvis_holo') !== '0') { setTimeout(function(){ toggleHologram(); }, 1000); }
 if(localStorage.getItem('jarvis_tts') === '0') { ttsEnabled = false; document.getElementById('tts-toggle').classList.remove('on'); }
-if(localStorage.getItem('jarvis_natural_tts') === '1') { naturalTTS = true; document.getElementById('natural-tts-toggle').classList.add('on'); }
+if(localStorage.getItem('jarvis_natural_tts') !== '0') { naturalTTS = true; document.getElementById('natural-tts-toggle').classList.add('on'); }
 // Sonido de inicio
 setTimeout(function(){ playSound('startup'); }, 200);
 renderSessions();

@@ -1589,7 +1589,7 @@ function convertUnits(value, from, to) {
 }
 function getWorldTime(query) {
   const tzMap = {
-    'méxico':'America/Mexico_City','cdmx':'America/Mexico_City','mexico city':'America/Mexico_City','ciudad de méxico':'America/Mexico_City','cancún':'America/Cancun','cancun':'America/Cancun','playa del carmen':'America/Cancun','tulum':'America/Cancun','guadalajara':'America/Mexico_City','monterrey':'America/Monterrey','tijuana':'America/Tijuana','chihuahua':'America/Chihuahua','hermosillo':'America/Hermosillo','mérida':'America/Merida','oaxaca':'America/Mexico_City','puebla':'America/Mexico_City','querétaro':'America/Mexico_City','san luis potosí':'America/Mexico_City','yucatán':'America/Merida','quintana roo':'America/Cancun',
+    'méxico':'America/Mexico_City','mexico':'America/Mexico_City','cdmx':'America/Mexico_City','mexico city':'America/Mexico_City','ciudad de méxico':'America/Mexico_City','cancún':'America/Cancun','cancun':'America/Cancun','playa del carmen':'America/Cancun','tulum':'America/Cancun','guadalajara':'America/Mexico_City','monterrey':'America/Monterrey','tijuana':'America/Tijuana','chihuahua':'America/Chihuahua','hermosillo':'America/Hermosillo','mérida':'America/Merida','merida':'America/Merida','oaxaca':'America/Mexico_City','puebla':'America/Mexico_City','querétaro':'America/Mexico_City','san luis potosí':'America/Mexico_City','yucatán':'America/Merida','yucatan':'America/Merida','quintana roo':'America/Cancun','cozumel':'America/Cancun','isla mujeres':'America/Cancun',
     'usa':'America/New_York','eeuu':'America/New_York','estados unidos':'America/New_York','new york':'America/New_York','ny':'America/New_York','los ángeles':'America/Los_Angeles','los angeles':'America/Los_Angeles','la':'America/Los_Angeles','chicago':'America/Chicago','miami':'America/New_York','houston':'America/Chicago','dallas':'America/Chicago','san francisco':'America/Los_Angeles','washington':'America/New_York','boston':'America/New_York','seattle':'America/Los_Angeles','denver':'America/Denver','phoenix':'America/Phoenix','las vegas':'America/Los_Angeles','orlando':'America/New_York','atlanta':'America/New_York',
     'españa':'Europe/Madrid','spain':'Europe/Madrid','madrid':'Europe/Madrid','barcelona':'Europe/Madrid','valencia':'Europe/Madrid','seville':'Europe/Madrid','sevilla':'Europe/Madrid','bilbao':'Europe/Madrid','canarias':'Atlantic/Canary','canary islands':'Atlantic/Canary',
     'reino unido':'Europe/London','uk':'Europe/London','inglaterra':'Europe/London','londres':'Europe/London','london':'Europe/London','manchester':'Europe/London','birmingham':'Europe/London','escocia':'Europe/London','edimburgo':'Europe/London','glascow':'Europe/London',
@@ -1641,17 +1641,28 @@ function getWorldTime(query) {
     'samoa':'Pacific/Apia','fiyi':'Pacific/Fiji','tonga':'Pacific/Tongatapu','tahití':'Pacific/Tahiti','tahiti':'Pacific/Tahiti',
     'azores':'Atlantic/Azores','madeira':'Atlantic/Madeira','caboverde':'Atlantic/Cape_Verde','cabo verde':'Atlantic/Cape_Verde',
     'groenlandia':'America/Godthab','greenland':'America/Godthab','nuuk':'America/Godthab',
-    'antártida':'Antarctica/McMurdo','antarctica':'Antarctica/McMurdo','antartida':'Antarctica/McMurdo'
+    'antártida':'Antarctica/McMurdo','antarctica':'Antarctica/McMurdo','antartida':'Antarctica/McMurdo',
+    'chicago illinois':'America/Chicago','chicago il':'America/Chicago','new york ny':'America/New_York','los angeles ca':'America/Los_Angeles','miami fl':'America/New_York','houston tx':'America/Chicago','dallas tx':'America/Chicago','san francisco ca':'America/Los_Angeles','seattle wa':'America/Los_Angeles','denver co':'America/Denver','phoenix az':'America/Phoenix','las vegas nv':'America/Los_Angeles','orlando fl':'America/New_York','atlanta ga':'America/New_York','boston ma':'America/New_York','washington dc':'America/New_York','mérida yucatán':'America/Merida','merida yucatan':'America/Merida','cancún quintana roo':'America/Cancun','cancun quintana roo':'America/Cancun','guadalajara jalisco':'America/Mexico_City','monterrey nuevo león':'America/Monterrey','monterrey nuevo leon':'America/Monterrey'
   };
   const q = query.toLowerCase().trim();
-  const tz = tzMap[q] || (Intl.supportedValuesOf ? Intl.supportedValuesOf('timeZone').filter(t=>t.toLowerCase().includes(q))[0] : null);
-  if(!tz) { addMessage('ai','❌ No reconozco "'+query+'". Prueba con un país, ciudad o huso IANA (ej: Europe/Madrid).'); return; }
+  const words = q.split(/\s+/).filter(w=>!/^(de|la|en|el|los|las|del|city|state|county|province|area|region)$/i.test(w));
+  let tz = tzMap[q];
+  if(!tz) { for(const w of words) { if(tzMap[w]) { tz=tzMap[w]; break; } } }
+  if(!tz && Intl.supportedValuesOf) {
+    const all = Intl.supportedValuesOf('timeZone');
+    for(const w of words) {
+      tz = all.filter(t=>t.toLowerCase().includes(w))[0];
+      if(tz) break;
+    }
+  }
+  if(!tz) { addMessage('ai','❌ No reconozco "'+query+'". Intenta con país, ciudad o formato IANA (ej: Europe/Madrid).'); return; }
   try {
     const now = new Date();
     const date = now.toLocaleDateString('es-MX',{timeZone:tz,weekday:'long',year:'numeric',month:'long',day:'numeric'});
     const time = now.toLocaleTimeString('es-MX',{timeZone:tz,hour:'2-digit',minute:'2-digit',hour12:true});
-    const off = Intl.DateTimeFormat('en',{timeZone:tz,timeZoneName:'short'}).formatToParts(now).find(p=>p.type==='timeZoneName')?.value||tz;
-    addMessage('ai','🌍 **'+query.toUpperCase()+'**\n📅 '+date+'\n🕐 '+time+'\n⏱ '+off);
+    const off = Intl.DateTimeFormat('es-MX',{timeZone:tz,timeZoneName:'short'}).formatToParts(now).find(p=>p.type==='timeZoneName')?.value||tz;
+    const displayName = words[0] ? words[0].charAt(0).toUpperCase()+words[0].slice(1) : query;
+    addMessage('ai','🌍 **'+displayName+'**\n📅 '+date+'\n🕐 '+time+'\n⏱ '+off);
     addLog('Mundial: '+query+' = '+time+' '+off);
   } catch(e) { addMessage('ai','❌ Error con zona horaria: '+e.message); }
 }

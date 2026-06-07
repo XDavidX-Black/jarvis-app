@@ -2056,17 +2056,20 @@ function initDragDrop() {
    ========================================================= */
 function exportChat() {
   if(!sessionHistory.length) { showToast('⚠️ No hay mensajes para exportar'); return; }
-  let html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>JARVIS Chat Export</title><style>body{font-family:Arial,sans-serif;margin:30px;color:#1a1a2e;background:#f5f5f5;}.msg{margin:10px 0;padding:10px 14px;border-radius:6px;max-width:700px;}.user{background:#e3f2fd;margin-left:auto;border:1px solid #bbdefb;}.ai{background:#f3e5f5;border:1px solid #e1bee7;}.label{font-size:10px;color:#666;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;}h1{color:#0066cc;border-bottom:2px solid #0066cc;padding-bottom:6px;}.date{color:#999;font-size:11px;margin-bottom:20px;}</style></head><body><h1>J.A.R.V.I.S — Chat</h1><div class="date">'+new Date().toLocaleString('es-MX')+'</div>';
+  const recipient = prompt('👤 ¿Para quién es este chat? (nombre de la persona):', '—');
+  if(recipient === null) { showToast('Exportación cancelada'); return; }
+  const name = recipient.trim() || '—';
+  let html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>JARVIS Chat - ' + name + '</title><style>body{font-family:Arial,sans-serif;margin:30px;color:#1a1a2e;background:#f5f5f5;}.msg{margin:10px 0;padding:10px 14px;border-radius:6px;max-width:700px;}.user{background:#e3f2fd;margin-left:auto;border:1px solid #bbdefb;}.ai{background:#f3e5f5;border:1px solid #e1bee7;}.label{font-size:10px;color:#666;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;}h1{color:#0066cc;border-bottom:2px solid #0066cc;padding-bottom:6px;}.date{color:#999;font-size:11px;margin-bottom:20px;}</style></head><body><h1>J.A.R.V.I.S — Chat compartido por ' + name + '</h1><div class="date">' + new Date().toLocaleString('es-MX') + '</div>';
   for(const m of sessionHistory) {
-    const role = m.role==='user' ? 'TÚ' : 'J.A.R.V.I.S';
-    html += '<div class="msg '+m.role+'"><div class="label">'+role+'</div>'+m.content.replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>')+'</div>';
+    const role = m.role === 'user' ? name : 'J.A.R.V.I.S';
+    html += '<div class="msg ' + m.role + '"><div class="label">' + role + '</div>' + m.content.replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>') + '</div>';
   }
-  html += '<div style="margin-top:30px;font-size:10px;color:#999;border-top:1px solid #ddd;padding-top:8px;">Generado por J.A.R.V.I.S v4.0.0</div></body></html>';
+  html += '<div style="margin-top:30px;font-size:10px;color:#999;border-top:1px solid #ddd;padding-top:8px;">Generado por J.A.R.V.I.S v4.0.0 — Compartido por ' + name + '</div></body></html>';
   const blob = new Blob([html], {type:'text/html'});
   const url = URL.createObjectURL(blob);
-  const a = document.createElement('a'); a.href=url; a.download='jarvis-chat-export.html'; a.click();
-  showToast('💬 Chat exportado');
-  addLog('Chat exportado');
+  const a = document.createElement('a'); a.href=url; a.download = 'jarvis-chat-' + name.replace(/\s+/g,'-').toLowerCase() + '.html'; a.click();
+  showToast('💬 Chat exportado para ' + name);
+  addLog('Chat exportado para ' + name);
 }
 
 /* =========================================================
@@ -2076,7 +2079,6 @@ async function getWeather() {
   addLog('Consultando clima...');
   showTyping();
   try {
-    // 1) GPS del navegador (preciso) o IP como fallback
     let lat, lon;
     try {
       const pos = await new Promise((ok,err)=>navigator.geolocation.getCurrentPosition(ok,err,{timeout:5000,enableHighAccuracy:true}));
@@ -2086,32 +2088,46 @@ async function getWeather() {
       const ip = await (await fetch('https://ipapi.co/json/')).json();
       lat = ip.latitude; lon = ip.longitude;
     }
-    // 2) Reverse geocode: nombre real de la ciudad (OpenStreetMap Nominatim, español)
     let city = '—', region = '', country = '';
     try {
       const geo = await (await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&accept-language=es`, { headers: { 'User-Agent': 'JARVIS-Weather/1.0' } })).json();
       const a = geo.address || {};
-      city = a.city || a.town || a.village || a.municipality || '—';
+      city = a.city || a.town || a.village || a.municipality || a.county || '—';
       region = a.state || '';
       country = a.country || '';
     } catch(e) { /* fallback */ }
-    // 3) Clima desde Open-Meteo
-    const w = await (await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&hourly=relativehumidity_2m,precipitation&timezone=auto`)).json();
-    const cw = w.current_weather || {};
-    const temp = cw.temperature != null ? cw.temperature+'°C' : '—';
-    const wind = cw.windspeed != null ? cw.windspeed+'km/h' : '—';
-    const code = cw.weathercode != null ? cw.weathercode : 0;
-    const desc = {0:'Despejado',1:'Mayormente despejado',2:'Parcialmente nublado',3:'Nublado',45:'Niebla',48:'Niebla con escarcha',51:'Llovizna ligera',53:'Llovizna moderada',55:'Llovizna densa',61:'Lluvia ligera',63:'Lluvia moderada',65:'Lluvia fuerte',71:'Nieve ligera',73:'Nieve moderada',75:'Nieve fuerte',80:'Chubascos ligeros',81:'Chubascos moderados',82:'Chubascos violentos',95:'Tormenta',96:'Tormenta con granizo',99:'Tormenta con granizo fuerte'}[code] || '—';
-    const humidity = (w.hourly?.relativehumidity_2m?.[0] != null) ? w.hourly.relativehumidity_2m[0]+'%' : '—';
-    const precip = (w.hourly?.precipitation?.[0]) ? w.hourly.precipitation[0]+'mm' : '0mm';
-    removeTyping();
+    // Clima actual + pronóstico 3 días desde Open-Meteo
+    const w = await (await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m,wind_direction_10m,uv_index&daily=temperature_2m_max,temperature_2m_min,weather_code,precipitation_sum,precipitation_probability_max,sunrise,sunset,wind_speed_10m_max&timezone=auto&forecast_days=3`)).json();
+    const c = w.current || {};
+    const temp = c.temperature_2m != null ? c.temperature_2m + '°C' : '—';
+    const feels = c.apparent_temperature != null ? c.apparent_temperature + '°C' : '—';
+    const wind = c.wind_speed_10m != null ? c.wind_speed_10m + ' km/h' : '—';
+    const hum = c.relative_humidity_2m != null ? c.relative_humidity_2m + '%' : '—';
+    const uv = c.uv_index != null ? c.uv_index : '—';
+    const wCode = c.weather_code != null ? c.weather_code : 0;
+    const desc = {0:'☀️ Despejado',1:'🌤 Mayormente despejado',2:'⛅ Parcialmente nublado',3:'☁️ Nublado',45:'🌫 Niebla',48:'🌫 Niebla con escarcha',51:'🌦 Llovizna ligera',53:'🌦 Llovizna moderada',55:'🌦 Llovizna densa',56:'🌦 Llovizna helada',57:'🌦 Llovizna helada densa',61:'🌧 Lluvia ligera',63:'🌧 Lluvia moderada',65:'🌧 Lluvia fuerte',66:'🌧 Lluvia helada ligera',67:'🌧 Lluvia helada fuerte',71:'❄️ Nieve ligera',73:'❄️ Nieve moderada',75:'❄️ Nieve fuerte',77:'❄️ Granos de nieve',80:'🌦 Chubascos ligeros',81:'🌦 Chubascos moderados',82:'🌦 Chubascos violentos',85:'❄️ Chubascos de nieve ligeros',86:'❄️ Chubascos de nieve fuertes',95:'⛈ Tormenta',96:'⛈ Tormenta con granizo',99:'⛈ Tormenta con granizo fuerte'}[wCode] || '—';
+    const windDir = c.wind_direction_10m != null ? ['N','NE','E','SE','S','SO','O','NO'][Math.round(c.wind_direction_10m/45)%8] : '';
+    const d = w.daily || {};
     const location = [city, region, country].filter(Boolean).join(', ');
-    addMessage('ai', `🌤️ **Clima en ${location}**\n\n☁️ **Estado:** ${desc}\n🌡️ **Temperatura:** ${temp}\n💧 **Humedad:** ${humidity}\n💨 **Viento:** ${wind}\n🌧️ **Precipitación:** ${precip}`);
-    addLog('Clima: '+location+' '+temp);
+    let msg = '🌤️ **Clima en ' + location + '**\n\n**Ahora:**\n' + desc + '\n🌡️ **Temperatura:** ' + temp + ' (sensación ' + feels + ')\n💧 **Humedad:** ' + hum + '\n💨 **Viento:** ' + wind + ' ' + windDir + '\n☀️ **UV:** ' + uv + '\n';
+    if(d.time) {
+      msg += '\n**Pronóstico 3 días:**\n';
+      for(let i=0;i<d.time.length;i++) {
+        const dd = {0:'☀️',1:'🌤',2:'⛅',3:'☁️',45:'🌫',48:'🌫',51:'🌦',53:'🌦',55:'🌦',61:'🌧',63:'🌧',65:'🌧',80:'🌦',81:'🌦',82:'🌦',95:'⛈',96:'⛈',99:'⛈'}[d.weather_code[i]] || '—';
+        msg += (i===0?'Hoy':new Date(d.time[i]).toLocaleDateString('es-MX',{weekday:'short'})) + ': ' + dd + ' ' + Math.round(d.temperature_2m_min[i]) + '°C → ' + Math.round(d.temperature_2m_max[i]) + '°C';
+        if(d.precipitation_probability_max?.[i] != null) msg += ' 🌧 ' + d.precipitation_probability_max[i] + '%';
+        if(d.precipitation_sum?.[i]) msg += ' (' + d.precipitation_sum[i] + 'mm)';
+        msg += '\n';
+      }
+    }
+    if(d.sunrise?.[0]) msg += '\n🌅 **Amanecer:** ' + new Date(d.sunrise[0]).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'}) + ' | 🌇 **Atardecer:** ' + new Date(d.sunset[0]).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
+    removeTyping();
+    addMessage('ai', msg);
+    addLog('Clima: ' + location + ' ' + temp);
   } catch(e) {
     removeTyping();
     addMessage('ai', '❌ No se pudo obtener el clima. Intenta más tarde.');
-    addLog('Error clima: '+e.message);
+    addLog('Error clima: ' + e.message);
   }
 }
 

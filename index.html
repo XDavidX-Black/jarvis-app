@@ -718,18 +718,20 @@ if(synth.onvoiceschanged!==undefined) synth.onvoiceschanged=loadVoices;
 function speak(text) {
   if(!ttsEnabled||!text) return;
   synth.cancel();
-  if(audioPlayer) { audioPlayer.pause(); audioPlayer.src = ''; }
+  if(audioPlayer) { try { audioPlayer.pause(); audioPlayer.src = ''; } catch(e){} }
   const clean=text.replace(/\*\*(.*?)\*\*/g,'$1').replace(/\*(.*?)\*/g,'$1').replace(/`(.*?)`/g,'$1').replace(/#{1,6}\s/g,'').replace(/\n/g,' ').substring(0,2000);
   if(!clean.trim()) return;
   const lang=jarvisVoice?jarvisVoice.lang:'es-MX';
   if(naturalTTS) {
-    const url=SERVER+'/tts?text='+encodeURIComponent(clean)+'&lang='+encodeURIComponent(lang);
-    var sw=document.getElementById('speak-wave'), vs=document.getElementById('voice-status');
-    if(sw) sw.classList.add('active');
-    if(vs) vs.textContent='Hablando...';
-    audioPlayer = new Audio(url);
-    audioPlayer.play();
-    audioPlayer.onended=function(){ if(sw) sw.classList.remove('active'); if(vs) vs.textContent='En espera'; };
+    try {
+      const url=SERVER+'/tts?text='+encodeURIComponent(clean)+'&lang='+encodeURIComponent(lang);
+      var sw=document.getElementById('speak-wave'), vs=document.getElementById('voice-status');
+      if(sw) sw.classList.add('active');
+      if(vs) vs.textContent='Hablando...';
+      audioPlayer = new Audio(url);
+      audioPlayer.play().catch(function(){});
+      audioPlayer.onended=function(){ if(sw) sw.classList.remove('active'); if(vs) vs.textContent='En espera'; };
+    } catch(e) { addLog('Error TTS: ' + e.message); }
     return;
   }
   const utt=new SpeechSynthesisUtterance(clean);
@@ -1052,7 +1054,7 @@ async function sendMessage(){
     // Guardar sesión en localStorage
     saveSession();
   }catch(err){
-    removeTyping(); addMessage('ai','Error: '+err.message); addLog('Error'); playSound('error'); setHoloState('idle');
+    removeTyping(); addMessage('ai','⚠️ **Error:** '+err.message+'\n_Reintenta o escribe "hola" para probar._'); addLog('Error: '+err.message); playSound('error'); setHoloState('idle');
   }
   loading=false; document.getElementById('send-btn').disabled=false; inp.focus();
 }

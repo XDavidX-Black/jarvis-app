@@ -378,7 +378,10 @@
         </div>
         <div class="voice-toggle" style="flex-wrap:wrap;gap:4px;">
           <span style="width:100%;font-size:11px;opacity:0.7;">Voz</span>
-          <select id="voice-select" onchange="selectVoice(this.value)" style="width:100%;background:var(--bg-card);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:2px 6px;font-size:11px;font-family:inherit;outline:none;"></select>
+          <div style="display:flex;gap:4px;width:100%;">
+            <select id="voice-select" onchange="selectVoice(this.value)" style="flex:1;background:var(--bg-card);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:2px 6px;font-size:11px;font-family:inherit;outline:none;"></select>
+            <button onclick="testVoice()" style="background:var(--primary);color:#000;border:none;border-radius:4px;padding:2px 8px;font-size:11px;cursor:pointer;font-family:inherit;font-weight:600;">▶</button>
+          </div>
         </div>
         <div class="voice-toggle" style="margin-bottom:0;">
           <span>Holograma</span>
@@ -627,17 +630,16 @@ function buildSystem() {
 function loadVoices() {
   const v=synth.getVoices();
   if(!v.length) return;
+  // Si no hay voz asignada, elegir la mejor disponible
+  if(!jarvisVoice) jarvisVoice=v.find(x=>x.lang==='es-MX')||v.find(x=>x.lang.startsWith('es'))||v[0];
   const sel=document.getElementById('voice-select');
-  // Preservar selección actual
+  if(!sel) return;
   const prev=localStorage.getItem('jarvis_voice_name');
   sel.innerHTML='';
-  // Orden: voces naturales primero, español primero
   const ordered=[...v].sort(function(a,b){
-    // Natural/Multilingual voices (Microsoft, Google) rank higher
     const aNat=/natural|neural|multilingual|google/i.test(a.name) ? 1 : 0;
     const bNat=/natural|neural|multilingual|google/i.test(b.name) ? 1 : 0;
     if(aNat!==bNat) return bNat-aNat;
-    // Spanish voices first
     const aEs=a.lang.startsWith('es')?1:0;
     const bEs=b.lang.startsWith('es')?1:0;
     if(aEs!==bEs) return bEs-aEs;
@@ -650,7 +652,6 @@ function loadVoices() {
     if(voice.name===prev||(!prev&&voice===jarvisVoice)) opt.selected=true;
     sel.appendChild(opt);
   }
-  // Aplicar voz guardada
   const saved=localStorage.getItem('jarvis_voice_name');
   if(saved) jarvisVoice=v.find(x=>x.name===saved)||jarvisVoice;
 }
@@ -658,6 +659,15 @@ function selectVoice(name) {
   const v=synth.getVoices();
   jarvisVoice=v.find(x=>x.name===name)||jarvisVoice;
   localStorage.setItem('jarvis_voice_name', name);
+}
+function testVoice() {
+  if(!jarvisVoice) return;
+  synth.cancel();
+  const utt=new SpeechSynthesisUtterance('Hola, soy J.A.R.V.I.S. Esta es mi nueva voz.');
+  utt.voice=jarvisVoice;
+  utt.rate=0.9; utt.pitch=0.85; utt.volume=1;
+  utt.lang=jarvisVoice.lang;
+  synth.speak(utt);
 }
 loadVoices();
 if(synth.onvoiceschanged!==undefined) synth.onvoiceschanged=loadVoices;
@@ -667,7 +677,8 @@ function speak(text) {
   synth.cancel();
   const clean=text.replace(/\*\*(.*?)\*\*/g,'$1').replace(/\*(.*?)\*/g,'$1').replace(/`(.*?)`/g,'$1').replace(/#{1,6}\s/g,'').replace(/\n/g,' ').substring(0,400);
   const utt=new SpeechSynthesisUtterance(clean);
-  utt.voice=jarvisVoice; utt.rate=0.9; utt.pitch=0.85; utt.volume=1; utt.lang='es-MX';
+  utt.voice=jarvisVoice; utt.rate=0.9; utt.pitch=0.85; utt.volume=1;
+  utt.lang=jarvisVoice?jarvisVoice.lang:'es-MX';
   utt.onstart=()=>{ document.getElementById('speak-wave').classList.add('active'); document.getElementById('voice-status').textContent='Hablando...'; };
   utt.onend=()=>{ document.getElementById('speak-wave').classList.remove('active'); document.getElementById('voice-status').textContent='En espera'; };
   synth.speak(utt);

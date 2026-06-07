@@ -676,6 +676,7 @@ function buildSystem() {
   if(typeof weatherCache !== 'undefined' && weatherCache) s += `\nClima actual del usuario: ${weatherCache}.`;
   if(memory.facts.length) s += `\nAprendido:\n${memory.facts.slice(-8).join('\n')}`;
   if(memory.chatHistory.length) s += `\nHistorial:\n${memory.chatHistory.slice(-4).join('\n')}`;
+  s += `\nHORA MUNDIAL: Puedo decir la hora actual de cualquier país, ciudad o huso horario.`;
   s += `\nCAPACIDADES DE ARCHIVOS: Puedo generar PDF, Word, Excel e imágenes cuando el usuario lo solicite. Si el usuario pide un archivo, debo responder con el contenido COMPLETO y DETALLADO que debería ir dentro de ese archivo, no solo una descripción.`;
   return s;
 }
@@ -1053,6 +1054,8 @@ async function sendMessage(){
       if(unit.startsWith('m')) secs *= 60;
       startTimer(secs);
     }
+    const timeMatch = lower.match(/^(hora|time|qué hora|que hora|hora actual|hora en|time in)\s+(.+)/i);
+    if(timeMatch) { getWorldTime(timeMatch[2]); }
     const shortMatch = lower.match(/^(acorta|acortar|shorten)\s+(https?:\/\/[^\s]+)/i);
     if(shortMatch) { shortenURL(shortMatch[2]); }
     const noteMatch = lower.match(/^(nota|apunta|guarda|recuérdame que)\s+(.+)/i);
@@ -1583,6 +1586,74 @@ function convertUnits(value, from, to) {
   if(isNaN(result)) { addMessage('ai','❌ Valor inválido.'); return; }
   addMessage('ai','📐 **' + value + ' ' + from.toUpperCase() + '** = **' + result.toFixed(4) + ' ' + to.toUpperCase() + '**');
   addLog('Unidades: ' + value + ' ' + from + ' → ' + to);
+}
+function getWorldTime(query) {
+  const tzMap = {
+    'méxico':'America/Mexico_City','cdmx':'America/Mexico_City','mexico city':'America/Mexico_City','ciudad de méxico':'America/Mexico_City','cancún':'America/Cancun','cancun':'America/Cancun','playa del carmen':'America/Cancun','tulum':'America/Cancun','guadalajara':'America/Mexico_City','monterrey':'America/Monterrey','tijuana':'America/Tijuana','chihuahua':'America/Chihuahua','hermosillo':'America/Hermosillo','mérida':'America/Merida','oaxaca':'America/Mexico_City','puebla':'America/Mexico_City','querétaro':'America/Mexico_City','san luis potosí':'America/Mexico_City','yucatán':'America/Merida','quintana roo':'America/Cancun',
+    'usa':'America/New_York','eeuu':'America/New_York','estados unidos':'America/New_York','new york':'America/New_York','ny':'America/New_York','los ángeles':'America/Los_Angeles','los angeles':'America/Los_Angeles','la':'America/Los_Angeles','chicago':'America/Chicago','miami':'America/New_York','houston':'America/Chicago','dallas':'America/Chicago','san francisco':'America/Los_Angeles','washington':'America/New_York','boston':'America/New_York','seattle':'America/Los_Angeles','denver':'America/Denver','phoenix':'America/Phoenix','las vegas':'America/Los_Angeles','orlando':'America/New_York','atlanta':'America/New_York',
+    'españa':'Europe/Madrid','spain':'Europe/Madrid','madrid':'Europe/Madrid','barcelona':'Europe/Madrid','valencia':'Europe/Madrid','seville':'Europe/Madrid','sevilla':'Europe/Madrid','bilbao':'Europe/Madrid','canarias':'Atlantic/Canary','canary islands':'Atlantic/Canary',
+    'reino unido':'Europe/London','uk':'Europe/London','inglaterra':'Europe/London','londres':'Europe/London','london':'Europe/London','manchester':'Europe/London','birmingham':'Europe/London','escocia':'Europe/London','edimburgo':'Europe/London','glascow':'Europe/London',
+    'francia':'Europe/Paris','france':'Europe/Paris','parís':'Europe/Paris','paris':'Europe/Paris','lyon':'Europe/Paris','marsella':'Europe/Paris','niza':'Europe/Paris',
+    'alemania':'Europe/Berlin','germany':'Europe/Berlin','berlin':'Europe/Berlin','berlín':'Europe/Berlin','munich':'Europe/Berlin','múnich':'Europe/Berlin','hamburgo':'Europe/Berlin','frankfurt':'Europe/Berlin',
+    'italia':'Europe/Rome','italy':'Europe/Rome','roma':'Europe/Rome','milán':'Europe/Rome','milan':'Europe/Rome','venecia':'Europe/Rome','florencia':'Europe/Rome','napoles':'Europe/Rome',
+    'portugal':'Europe/Lisbon','lisboa':'Europe/Lisbon','lisbon':'Europe/Lisbon','oporto':'Europe/Lisbon',
+    'brasil':'America/Sao_Paulo','brazil':'America/Sao_Paulo','são paulo':'America/Sao_Paulo','sao paulo':'America/Sao_Paulo','rio de janeiro':'America/Sao_Paulo','brasília':'America/Sao_Paulo','salvador':'America/Bahia','manaus':'America/Manaus','recife':'America/Recife','curitiba':'America/Sao_Paulo','fortaleza':'America/Fortaleza',
+    'argentina':'America/Argentina/Buenos_Aires','buenos aires':'America/Argentina/Buenos_Aires','córdoba':'America/Argentina/Cordoba','rosario':'America/Argentina/Cordoba','mendoza':'America/Argentina/Mendoza','la plata':'America/Argentina/Buenos_Aires',
+    'colombia':'America/Bogota','bogotá':'America/Bogota','bogota':'America/Bogota','medellín':'America/Bogota','cali':'America/Bogota','barranquilla':'America/Bogota','cartagena':'America/Bogota',
+    'chile':'America/Santiago','santiago':'America/Santiago','valparaíso':'America/Santiago','valparaiso':'America/Santiago','concepción':'America/Santiago','punta arenas':'America/Punta_Arenas',
+    'perú':'America/Lima','peru':'America/Lima','lima':'America/Lima','cusco':'America/Lima','arequipa':'America/Lima',
+    'venezuela':'America/Caracas','caracas':'America/Caracas','maracaibo':'America/Caracas','valencia ve':'America/Caracas',
+    'ecuador':'America/Guayaquil','quito':'America/Guayaquil','guayaquil':'America/Guayaquil','galápagos':'Pacific/Galapagos',
+    'bolivia':'America/La_Paz','la paz':'America/La_Paz','cochabamba':'America/La_Paz','santa cruz':'America/La_Paz',
+    'uruguay':'America/Montevideo','montevideo':'America/Montevideo','punta del este':'America/Montevideo',
+    'paraguay':'America/Asuncion','asunción':'America/Asuncion','asuncion':'America/Asuncion','ciudad del este':'America/Asuncion',
+    'costa rica':'America/Costa_Rica','san josé':'America/Costa_Rica','san jose cr':'America/Costa_Rica','liberia':'America/Costa_Rica',
+    'guatemala':'America/Guatemala','guatemala city':'America/Guatemala','antigua':'America/Guatemala',
+    'panamá':'America/Panama','panama':'America/Panama','panama city':'America/Panama',
+    'cuba':'America/Havana','la habana':'America/Havana','habana':'America/Havana','varadero':'America/Havana',
+    'república dominicana':'America/Santo_Domingo','republica dominicana':'America/Santo_Domingo','santo domingo':'America/Santo_Domingo','punta cana':'America/Santo_Domingo',
+    'puerto rico':'America/Puerto_Rico','san juan':'America/Puerto_Rico',
+    'honduras':'America/Tegucigalpa','tegucigalpa':'America/Tegucigalpa','san pedro sula':'America/Tegucigalpa',
+    'el salvador':'America/El_Salvador','san salvador':'America/El_Salvador',
+    'nicaragua':'America/Managua','managua':'America/Managua',
+    'canadá':'America/Toronto','canada':'America/Toronto','toronto':'America/Toronto','vancouver':'America/Vancouver','montreal':'America/Toronto','ottawa':'America/Toronto','calgary':'America/Edmonton','edmonton':'America/Edmonton','quebec':'America/Toronto',
+    'japón':'Asia/Tokyo','japon':'Asia/Tokyo','tokyo':'Asia/Tokyo','tokio':'Asia/Tokyo','osaka':'Asia/Tokyo','kioto':'Asia/Tokyo','sapporo':'Asia/Tokyo',
+    'china':'Asia/Shanghai','beijing':'Asia/Shanghai','pekin':'Asia/Shanghai','shanghai':'Asia/Shanghai','hong kong':'Asia/Hong_Kong','hongkong':'Asia/Hong_Kong','cantón':'Asia/Shanghai','shenzhen':'Asia/Shanghai',
+    'india':'Asia/Kolkata','delhi':'Asia/Kolkata','nueva delhi':'Asia/Kolkata','mumbai':'Asia/Kolkata','bombay':'Asia/Kolkata','bangalore':'Asia/Kolkata','chennai':'Asia/Kolkata','kolkata':'Asia/Kolkata','calcuta':'Asia/Kolkata','hyderabad':'Asia/Kolkata',
+    'australia':'Australia/Sydney','sydney':'Australia/Sydney','melbourne':'Australia/Sydney','brisbane':'Australia/Brisbane','perth':'Australia/Perth','adelaide':'Australia/Adelaide','canberra':'Australia/Sydney','gold coast':'Australia/Brisbane',
+    'corea del sur':'Asia/Seoul','corea':'Asia/Seoul','seúl':'Asia/Seoul','seoul':'Asia/Seoul','busan':'Asia/Seoul',
+    'rusia':'Europe/Moscow','rusia':'Europe/Moscow','moscú':'Europe/Moscow','moscow':'Europe/Moscow','san petersburgo':'Europe/Moscow','vladivostok':'Asia/Vladivostok',
+    'sudáfrica':'Africa/Johannesburg','sudafrica':'Africa/Johannesburg','johannesburgo':'Africa/Johannesburg','johannesburg':'Africa/Johannesburg','pretoria':'Africa/Johannesburg','ciudad del cabo':'Africa/Johannesburg','durban':'Africa/Johannesburg',
+    'egipto':'Africa/Cairo','el cairo':'Africa/Cairo','cairo':'Africa/Cairo','alejandría':'Africa/Cairo','luxor':'Africa/Cairo',
+    'turquía':'Europe/Istanbul','turquia':'Europe/Istanbul','estambul':'Europe/Istanbul','istanbul':'Europe/Istanbul','ankara':'Europe/Istanbul',
+    'tailandia':'Asia/Bangkok','bangkok':'Asia/Bangkok','phuket':'Asia/Bangkok','chiang mai':'Asia/Bangkok','pattaya':'Asia/Bangkok',
+    'vietnam':'Asia/Ho_Chi_Minh','ho chi minh':'Asia/Ho_Chi_Minh','hanoi':'Asia/Ho_Chi_Minh','da nang':'Asia/Ho_Chi_Minh',
+    'indonesia':'Asia/Jakarta','jakarta':'Asia/Jakarta','bali':'Asia/Makassar','yogyakarta':'Asia/Jakarta','bandung':'Asia/Jakarta',
+    'filipinas':'Asia/Manila','manila':'Asia/Manila','quezon':'Asia/Manila','cebu':'Asia/Manila',
+    'malasia':'Asia/Kuala_Lumpur','kuala lumpur':'Asia/Kuala_Lumpur','penang':'Asia/Kuala_Lumpur','borneo':'Asia/Kuching',
+    'singapur':'Asia/Singapore','singapur':'Asia/Singapore',
+    'emiratos árabes':'Asia/Dubai','dubai':'Asia/Dubai','abu dhabi':'Asia/Dubai',
+    'arabia saudita':'Asia/Riyadh','riyadh':'Asia/Riyadh','la meca':'Asia/Riyadh','jedá':'Asia/Riyadh',
+    'israel':'Asia/Jerusalem','jerusalén':'Asia/Jerusalem','jerusalem':'Asia/Jerusalem','tel aviv':'Asia/Jerusalem','tel-aviv':'Asia/Jerusalem',
+    'nueva zelanda':'Pacific/Auckland','new zealand':'Pacific/Auckland','auckland':'Pacific/Auckland','wellington':'Pacific/Auckland','christchurch':'Pacific/Auckland',
+    'hawai':'Pacific/Honolulu','honolulú':'Pacific/Honolulu','honolulu':'Pacific/Honolulu',
+    'guam':'Pacific/Guam','saipan':'Pacific/Saipan',
+    'samoa':'Pacific/Apia','fiyi':'Pacific/Fiji','tonga':'Pacific/Tongatapu','tahití':'Pacific/Tahiti','tahiti':'Pacific/Tahiti',
+    'azores':'Atlantic/Azores','madeira':'Atlantic/Madeira','caboverde':'Atlantic/Cape_Verde','cabo verde':'Atlantic/Cape_Verde',
+    'groenlandia':'America/Godthab','greenland':'America/Godthab','nuuk':'America/Godthab',
+    'antártida':'Antarctica/McMurdo','antarctica':'Antarctica/McMurdo','antartida':'Antarctica/McMurdo'
+  };
+  const q = query.toLowerCase().trim();
+  const tz = tzMap[q] || (Intl.supportedValuesOf ? Intl.supportedValuesOf('timeZone').filter(t=>t.toLowerCase().includes(q))[0] : null);
+  if(!tz) { addMessage('ai','❌ No reconozco "'+query+'". Prueba con un país, ciudad o huso IANA (ej: Europe/Madrid).'); return; }
+  try {
+    const now = new Date();
+    const date = now.toLocaleDateString('es-MX',{timeZone:tz,weekday:'long',year:'numeric',month:'long',day:'numeric'});
+    const time = now.toLocaleTimeString('es-MX',{timeZone:tz,hour:'2-digit',minute:'2-digit',hour12:true});
+    const off = Intl.DateTimeFormat('en',{timeZone:tz,timeZoneName:'short'}).formatToParts(now).find(p=>p.type==='timeZoneName')?.value||tz;
+    addMessage('ai','🌍 **'+query.toUpperCase()+'**\n📅 '+date+'\n🕐 '+time+'\n⏱ '+off);
+    addLog('Mundial: '+query+' = '+time+' '+off);
+  } catch(e) { addMessage('ai','❌ Error con zona horaria: '+e.message); }
 }
 function generatePassword() {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+-=[]{}|;:,.<>?';

@@ -1503,20 +1503,20 @@ function convertFile(content, fromType, toType, fileName) {
    ========================================================= */
 function getNews() {
   addMessage('ai','📰 **Noticias de hoy**\n⏳ Consultando fuentes...');
-  fetch('https://api.currentsapi.services/v1/latest-news?language=es&apiKey=3I-2CP7WuCTKvkAFWFT8fzSceoGjMFEmVh44G_-0u5YmNJYj')
+  fetch('https://api.rss2json.com/v1/api.json?rss_url=' + encodeURIComponent('https://news.google.com/rss?hl=es-419&gl=MX&ceid=MX:es-419'))
     .then(function(r){return r.json()})
     .then(function(d){
-      if(d.news && d.news.length) {
-        let html = '📰 **Últimas noticias**\n\n';
-        for(let i=0;i<Math.min(5,d.news.length);i++){
-          html += '**'+(i+1)+'.** ' + d.news[i].title + '\n';
-          if(d.news[i].description) html += '   ' + d.news[i].description.substring(0,120) + '...\n';
+      if(d.items && d.items.length) {
+        let html = '📰 **Noticias de México**\n\n';
+        for(let i=0;i<Math.min(5,d.items.length);i++){
+          html += '**'+(i+1)+'.** ' + d.items[i].title.replace(/<\/?[^>]+(>|$)/g, '') + '\n';
+          html += '   _' + (d.items[i].author||'Google News') + ' — ' + d.items[i].pubDate.substring(0,10) + '_\n';
         }
         addMessage('ai', html);
         addLog('Noticias obtenidas');
       } else addMessage('ai','❌ No se pudieron obtener noticias. Reintenta más tarde.');
     })
-    .catch(function(e){ addMessage('ai','❌ Error: '+e.message); });
+    .catch(function(e){ addMessage('ai','❌ Error de conexión: ' + e.message); });
 }
 function searchWiki(term) {
   addMessage('ai','📖 **Wikipedia:** ' + term + '\n⏳ Buscando...');

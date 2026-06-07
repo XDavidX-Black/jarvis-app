@@ -595,6 +595,8 @@ function initRecognition() {
 function startListening() {
   if(isListening){ recognition.stop(); return; }
   if(!recognition&&!initRecognition()) return;
+  // Si wake está activo, lo pausamos para evitar conflicto
+  if(wakeActive) { wakeActive = false; stopWakeWord(); document.getElementById('wake-toggle').classList.remove('on'); document.getElementById('wake-status').textContent = '🎤 Di "Hola JARVIS"'; }
   synth.cancel();
   try{ recognition.start(); }catch(e){}
 }
@@ -850,12 +852,12 @@ function startWakeWord() {
 
   wakeRecognition.onerror = function(e) {
     if(e.error === 'no-speech' || e.error === 'aborted') return;
-    showToast('❌ Error: '+e.error);
-    if(wakeActive) setTimeout(startWakeWord, 2000);
+    showToast('❌ Error de voz: '+e.error);
+    if(wakeActive) setTimeout(startWakeWord, 1500);
   };
 
   wakeRecognition.onend = function() {
-    if(wakeActive) setTimeout(startWakeWord, 500);
+    if(wakeActive) setTimeout(startWakeWord, 300);
   };
 
   try { wakeRecognition.start(); } catch(e) {}

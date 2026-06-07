@@ -24,28 +24,28 @@
     --bg: #020b12; --panel: rgba(0,20,40,0.85);
     --border: rgba(0,212,255,0.2); --text: #cce8f4;
     --text-dim: rgba(204,232,244,0.5); --success: #00ff9d;
-    --font-size: 15px; --font-size-msg: 15px;
+    --font-size: 15px; --font-size-msg: 15px; --bg-card: rgba(0,20,40,0.7);
   }
   [data-theme="matrix"] {
     --primary: #00ff41; --primary-dim: rgba(0,255,65,0.12);
     --primary-glow: rgba(0,255,65,0.4); --accent: #ff003c;
     --bg: #000a00; --panel: rgba(0,20,0,0.85);
     --border: rgba(0,255,65,0.2); --text: #b3ffb3;
-    --text-dim: rgba(179,255,179,0.5); --success: #00ff41;
+    --text-dim: rgba(179,255,179,0.5); --success: #00ff41; --bg-card: rgba(0,20,0,0.7);
   }
   [data-theme="fire"] {
     --primary: #ff4500; --primary-dim: rgba(255,69,0,0.12);
     --primary-glow: rgba(255,69,0,0.4); --accent: #ffd700;
     --bg: #0a0400; --panel: rgba(30,10,0,0.85);
     --border: rgba(255,69,0,0.2); --text: #ffccaa;
-    --text-dim: rgba(255,204,170,0.5); --success: #ffd700;
+    --text-dim: rgba(255,204,170,0.5); --success: #ffd700; --bg-card: rgba(30,10,0,0.7);
   }
   [data-theme="classic"] {
     --primary: #1a56db; --primary-dim: rgba(26,86,219,0.1);
     --primary-glow: rgba(26,86,219,0.25); --accent: #d92d20;
     --bg: #e8edf4; --panel: rgba(255,255,255,0.92);
     --border: rgba(26,86,219,0.2); --text: #1a202c;
-    --text-dim: rgba(26,32,44,0.55); --success: #059669;
+    --text-dim: rgba(26,32,44,0.55); --success: #059669; --bg-card: rgba(255,255,255,0.85);
   }
   [data-theme="classic"] body::before { background-image:linear-gradient(rgba(0,0,0,0.05) 1px,transparent 1px),linear-gradient(90deg,rgba(0,0,0,0.05) 1px,transparent 1px) !important; }
   html, body { width:100%; height:100%; background:var(--bg); color:var(--text); font-family:'Rajdhani',sans-serif; overflow:hidden; }
@@ -637,6 +637,7 @@ let sessionHistory = [];
 let loading = false;
 let ttsEnabled = true;
 let naturalTTS = true;
+let ipDataCache = null;
 let synth = window.speechSynthesis;
 let recognition = null;
 let isListening = false;
@@ -729,8 +730,8 @@ function speak(text) {
       if(sw) sw.classList.add('active');
       if(vs) vs.textContent='Hablando...';
       audioPlayer = new Audio(url);
-      audioPlayer.play().catch(function(){});
       audioPlayer.onended=function(){ if(sw) sw.classList.remove('active'); if(vs) vs.textContent='En espera'; };
+      audioPlayer.play().catch(function(){});
     } catch(e) { addLog('Error TTS: ' + e.message); }
     return;
   }
@@ -868,7 +869,7 @@ function addMessage(role,text,imgUrl){
   }
 }
 
-function copyText(t) { navigator.clipboard.writeText(t).then(function(){ showToast('📋 Copiado'); }); }
+function copyText(t) { navigator.clipboard.writeText(t).then(function(){ showToast('📋 Copiado'); }).catch(function(){ showToast('❌ No se pudo copiar'); }); }
 
 function translateMsg(el) {
   const bubble = el.closest('.msg-inner').querySelector('.bubble');
@@ -1064,7 +1065,7 @@ async function sendMessage(){
 }
 
 function sendSuggestion(t){ document.getElementById('input').value=t; sendMessage(); }
-function clearChat(){ sessionHistory=[]; document.getElementById('messages').innerHTML=''; document.getElementById('messages').style.display='none'; document.getElementById('welcome').style.display='flex'; synth.cancel(); addLog('Sesión reiniciada'); }
+function clearChat(){ sessionHistory=[]; document.getElementById('messages').innerHTML=''; document.getElementById('messages').style.display='none'; document.getElementById('welcome').style.display='flex'; synth.cancel(); if(timerInterval){clearInterval(timerInterval);timerInterval=null;} addLog('Sesión reiniciada'); }
 function handleKey(e){ if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMessage();} }
 function autoResize(el){ el.style.height='auto'; el.style.height=Math.min(el.scrollHeight,130)+'px'; }
 
@@ -1089,8 +1090,8 @@ async function detectIP() {
   addLog('Detectando IP...');
   document.getElementById('ip-display').textContent = 'Buscando...';
   try {
-    const res = await fetch('https://ipapi.co/json/');
-    const data = await res.json();
+    if(!ipDataCache) { const r=await fetch('https://ipapi.co/json/'); ipDataCache=await r.json(); }
+    const data = ipDataCache;
     const ip = data.ip || '—';
     const loc = [data.city, data.region, data.country_name].filter(Boolean).join(', ');
     document.getElementById('ip-display').textContent = ip;
@@ -1470,7 +1471,7 @@ function convertFile(content, fromType, toType, fileName) {
     const a = document.createElement('a'); a.href=url; a.download = baseName + '.txt';
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
     setTimeout(function(){URL.revokeObjectURL(url);},3000);
-    showDocCard('word', content, url, baseName + '.txt');
+    showDocCard('txt', content, url, baseName + '.txt');
   } else if(toType === 'csv') {
     let csv = 'J.A.R.V.I.S.,Convertido desde ' + fileName.toUpperCase() + '\n';
     csv += 'Fuente,' + fromType.toUpperCase() + '\n\n';
@@ -1551,7 +1552,7 @@ function generatePassword() {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+-=[]{}|;:,.<>?';
   let pwd = '';
   for(let i=0;i<18;i++) pwd += chars.charAt(Math.floor(Math.random()*chars.length));
-  navigator.clipboard.writeText(pwd);
+  navigator.clipboard.writeText(pwd).catch(function(){});
   addMessage('ai','🔑 **Contraseña generada:** `' + pwd + '`\n📋 _Copiada al portapapeles._');
   addLog('Contraseña generada');
 }
@@ -1597,14 +1598,13 @@ function getJoke() {
     .catch(function(){ addMessage('ai','❌ Error obteniendo chiste.'); });
 }
 function getTrivia() {
-  fetch('https://opentdb.com/api.php?amount=1&type=multiple&lang=es')
+  fetch('https://opentdb.com/api.php?amount=1&type=multiple')
     .then(function(r){return r.json()})
     .then(function(d){
       if(d.results && d.results[0]) {
         const q = d.results[0];
-        const answers = [q.correct_answer, ...q.incorrect_answers].sort(function(){return Math.random()-0.5;});
+        const answers = [q.correct_answer, ...q.incorrect_answers]; for(let i=answers.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [answers[i],answers[j]]=[answers[j],answers[i]]; }
         addMessage('ai','❓ **Trivia — ' + q.category + '** (' + q.difficulty + ')\n\n**' + q.question + '**\n\n' + answers.map(function(a,i){return (i+1)+'. '+a;}).join('\n') + '\n\n_¿Sabes la respuesta?_');
-        // Guardar respuesta correcta
         window._lastTrivia = q.correct_answer;
         addLog('Trivia: ' + q.category);
       }
@@ -1667,7 +1667,7 @@ function shortenURL(url) {
   fetch('https://is.gd/create.php?format=json&url=' + encodeURIComponent(url))
     .then(function(r){return r.json()})
     .then(function(d){
-      if(d.shorturl) { navigator.clipboard.writeText(d.shorturl); addMessage('ai','🔗 **URL acortada:**\n' + d.shorturl + '\n📋 _Copiado al portapapeles._'); }
+      if(d.shorturl) { navigator.clipboard.writeText(d.shorturl).catch(function(){}); addMessage('ai','🔗 **URL acortada:**\n' + d.shorturl + '\n📋 _Copiado al portapapeles._'); }
       else addMessage('ai','❌ URL inválida.');
     })
     .catch(function(){ addMessage('ai','❌ Error acortando URL.'); });
@@ -1765,6 +1765,7 @@ function toggleDashboard() {
     dash.style.display = 'none';
     msgs.style.display = '';
     if(inputArea) inputArea.style.display = '';
+    if(window.dashInterval){clearInterval(window.dashInterval);window.dashInterval=null;}
     updateDashboard();
     return;
   }
@@ -1798,9 +1799,9 @@ function showDocCard(type, content, downloadUrl, filename) {
   const msgs = document.getElementById('messages');
   const div = document.createElement('div'); div.className = 'msg ai';
 
-  const icons = {pdf:'📄', word:'📝', excel:'📊', html:'🌐'};
-  const labels = {pdf:'PDF PROFESIONAL', word:'WORD', excel:'EXCEL', html:'HTML'};
-  const colors = {pdf:'#e74c3c', word:'#2b5797', excel:'#27ae60', html:'#f39c12'};
+  const icons = {pdf:'📄', word:'📝', excel:'📊', html:'🌐', txt:'📃'};
+  const labels = {pdf:'PDF PROFESIONAL', word:'WORD', excel:'EXCEL', html:'HTML', txt:'TEXTO'};
+  const colors = {pdf:'#e74c3c', word:'#2b5797', excel:'#27ae60', html:'#f39c12', txt:'#888'};
   const icon = icons[type] || '📄';
   const label = labels[type] || 'DOCUMENTO';
   const color = colors[type] || 'var(--primary)';
@@ -2091,8 +2092,8 @@ async function getWeather() {
       lat = pos.coords.latitude; lon = pos.coords.longitude;
     } catch(e) {
       addLog('GPS no disponible, usando IP...');
-      const ip = await (await fetch('https://ipapi.co/json/')).json();
-      lat = ip.latitude; lon = ip.longitude;
+      if(!ipDataCache) { const r=await fetch('https://ipapi.co/json/'); ipDataCache=await r.json(); }
+      lat = ipDataCache.latitude; lon = ipDataCache.longitude;
     }
     let city = '—', region = '', country = '';
     try {
@@ -2571,7 +2572,6 @@ document.addEventListener('mousemove', function(e) {
 // Cambiar estado del holograma
 function setHoloState(s) {
   if(s !== holoLastState) { holoIntensity = 1; holoLastState = s; }
-  if(s !== holoLastState) { holoIntensity = 1; holoLastState = s; }
   holoState = s;
   if(holoStateTimer) { clearTimeout(holoStateTimer); holoStateTimer = null; }
   if(s === 'speaking') {
@@ -2592,14 +2592,14 @@ const themes = [
 function initThemes() {
   const row = document.getElementById('theme-row');
   const saved = localStorage.getItem('jarvis_theme') || 'cyberpunk';
-  row.innerHTML = themes.map(t => '<div class="theme-btn'+(saved===t.id?' active':'')+'" style="background:'+t.color+'" title="'+t.desc+'" onclick="setTheme(\''+t.id+'\')"></div>').join('');
+  row.innerHTML = themes.map(t => '<div class="theme-btn'+(saved===t.id?' active':'')+'" style="background:'+t.color+'" title="'+t.desc+'" data-id="'+t.id+'" onclick="setTheme(\''+t.id+'\')"></div>').join('');
   setTheme(saved, true);
 }
 
 function setTheme(id, skipSave) {
   document.documentElement.setAttribute('data-theme', id === 'cyberpunk' ? '' : id);
   if(!skipSave) localStorage.setItem('jarvis_theme', id);
-  document.querySelectorAll('#theme-row .theme-btn').forEach(b => b.classList.toggle('active', b.style.background === themes.find(t=>t.id===id)?.color));
+  document.querySelectorAll('#theme-row .theme-btn').forEach(b => b.classList.toggle('active', b.getAttribute('data-id') === id));
 }
 
 /* =========================================================

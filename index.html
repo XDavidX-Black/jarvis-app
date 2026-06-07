@@ -937,7 +937,8 @@ async function generateWord(content) {
     // HTML → .doc (Word lo abre, UTF-8 nativo, sin problemas de acentos)
     const clean = content.replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\*\*/g,'').replace(/\*/g,'');
     const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>JARVIS Documento</title><style>body{font-family:Arial,sans-serif;margin:30px;color:#111;}h1{color:#0066cc;border-bottom:2px solid #0066cc;padding-bottom:6px;}.date{color:#666;font-size:11px;margin-bottom:20px;}pre{font-size:13px;line-height:1.7;white-space:pre-wrap;font-family:Arial,sans-serif;}.f{color:#999;font-size:10px;border-top:1px solid #ddd;padding-top:8px;margin-top:30px;}</style></head><body><h1>J.A.R.V.I.S — DOCUMENTO</h1><div class="date">${new Date().toLocaleString('es-MX')}</div><pre>${clean}</pre><div class="f">Generado por J.A.R.V.I.S v4.0.0</div></body></html>`;
-    const blob = new Blob([html], {type:'text/html'});
+    // BOM \ufeff forza UTF-8 en Word
+    const blob = new Blob(['\ufeff' + html], {type:'application/msword'});
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a'); a.href=url; a.download='jarvis-documento.doc'; a.click();
     addMessage('ai', '✅ **Word generado** y descargado correctamente.');

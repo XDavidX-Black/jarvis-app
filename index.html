@@ -836,21 +836,14 @@ function startWakeWord() {
   wakeRecognition.continuous = true;
   wakeRecognition.interimResults = true;
   wakeRecognition.maxAlternatives = 3;
-  // Reiniciar cada 20s para evitar timeout "network" de Chrome
-  let restartTimer = setInterval(function(){
-    if(!wakeActive) { clearInterval(restartTimer); return; }
-    try { wakeRecognition.stop(); } catch(e){}
-    setTimeout(startWakeWord, 100);
-  }, 20000);
-  wakeRecognition._restartTimer = restartTimer;
 
   wakeRecognition.onresult = function(e) {
     if(!wakeActive) return;
     for(let i = e.resultIndex; i < e.results.length; i++) {
       const transcript = e.results[i][0].transcript.toLowerCase().trim();
-      // Buscar "hola jarvis", "jarvis", "oye jarvis", "hey jarvis"
-      if(/^(hola\s+)?(hey|oye)?\s*jarvis/i.test(transcript) && e.results[i].isFinal) {
-        stopWakeWord(); // pausa wake
+      // Buscar "hola jarvis", "jarvis", "oye jarvis", "hey jarvis" en cualquier parte
+      if(/(hola\s+)?(hey|oye)?\s*jarvis/i.test(transcript) && e.results[i].isFinal) {
+        stopWakeWord();
         onWakeDetected();
         return;
       }
@@ -873,7 +866,6 @@ function startWakeWord() {
 
 function stopWakeWord() {
   if(wakeRecognition) {
-    if(wakeRecognition._restartTimer) clearInterval(wakeRecognition._restartTimer);
     try { wakeRecognition.stop(); } catch(e) {}
     wakeRecognition = null;
   }

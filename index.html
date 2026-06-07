@@ -1140,7 +1140,7 @@ function generatePDF(content) {
     document.body.appendChild(a); a.click();
     document.body.removeChild(a);
     setTimeout(() => URL.revokeObjectURL(url), 3000);
-    addMessage('ai', '✅ **PDF generado** con formato profesional, paginado y listo.');
+    showDocCard('pdf', content, url, 'jarvis-informe.pdf');
     addLog('PDF generado');
     showToast('📄 PDF descargado');
   } catch(e) {
@@ -1177,7 +1177,7 @@ function generatePDFFallback(content) {
   document.body.appendChild(a); a.click();
   document.body.removeChild(a);
   setTimeout(() => URL.revokeObjectURL(url), 3000);
-  addMessage('ai', '✅ **Archivo HTML descargado.** Ábrelo en el navegador y usa **Ctrl+P → Guardar como PDF**.\n_(jsPDF no cargó, pero el contenido está completo con estilo profesional)_');
+  showDocCard('html', 'Este archivo HTML se abre en el navegador. Usa Ctrl+P → Guardar como PDF para convertirlo.\n\n' + content, url, 'jarvis-informe.html');
   addLog('PDF fallback listo');
   showToast('📄 HTML descargado → imprimir como PDF');
 }
@@ -1226,7 +1226,7 @@ async function generateWord(content) {
     const blob = new Blob(['\ufeff' + html], {type:'application/msword'});
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a'); a.href=url; a.download='jarvis-documento.doc'; a.click();
-    addMessage('ai', '✅ **Word generado** con formato profesional, listo para editar o imprimir.');
+    showDocCard('word', content, url, 'jarvis-documento.doc');
     addLog('Word generado');
     showToast('📝 Word descargado');
   } catch(e) {
@@ -1278,7 +1278,7 @@ function generateExcelFromContent(content) {
     const xlA = document.createElement('a'); xlA.href=xlUrl; xlA.download='jarvis-datos.xlsx';
     document.body.appendChild(xlA); xlA.click(); document.body.removeChild(xlA);
     setTimeout(()=>URL.revokeObjectURL(xlUrl),3000);
-    addMessage('ai', '✅ **Excel generado** con formato profesional, columnas ajustadas y membrete JARVIS.');
+    showDocCard('excel', content, xlUrl, 'jarvis-datos.xlsx');
     addLog('Excel generado');
     showToast('📊 Excel descargado');
   } catch(e) {
@@ -1307,7 +1307,7 @@ function generateExcelFixed(content) {
     const xlA = document.createElement('a'); xlA.href=xlUrl; xlA.download='jarvis-datos.xlsx';
     document.body.appendChild(xlA); xlA.click(); document.body.removeChild(xlA);
     setTimeout(()=>URL.revokeObjectURL(xlUrl),3000);
-    addMessage('ai', '✅ **Excel generado** con membrete JARVIS.');
+    showDocCard('excel', 'Contenido: ' + content.substring(0,300), xlUrl, 'jarvis-datos.xlsx');
     addLog('Excel generado');
     showToast('📊 Excel descargado');
   } catch(e) {
@@ -1316,8 +1316,45 @@ function generateExcelFixed(content) {
 }
 
 /* =========================================================
-   FUNCIÓN: Mostrar imagen en el chat (DOM API, 100% reliable)
+   ENTREGA VISUAL DE DOCUMENTOS
    ========================================================= */
+function showDocCard(type, content, downloadUrl, filename) {
+  showMessages();
+  const msgs = document.getElementById('messages');
+  const div = document.createElement('div'); div.className = 'msg ai';
+
+  const icons = {pdf:'📄', word:'📝', excel:'📊', html:'🌐'};
+  const labels = {pdf:'PDF PROFESIONAL', word:'WORD', excel:'EXCEL', html:'HTML'};
+  const colors = {pdf:'#e74c3c', word:'#2b5797', excel:'#27ae60', html:'#f39c12'};
+  const icon = icons[type] || '📄';
+  const label = labels[type] || 'DOCUMENTO';
+  const color = colors[type] || 'var(--primary)';
+  const clean = content.replace(/\*\*/g,'').replace(/\*/g,'').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const preview = clean.substring(0, 200).trim();
+  const safeFilename = filename || ('jarvis-' + type + '.' + (type==='word'?'doc':type));
+
+  div.innerHTML = `<div class="avatar ai">AI</div>
+  <div class="msg-inner">
+    <div class="msg-label">J.A.R.V.I.S</div>
+    <div class="bubble ai" style="border-left:3px solid ${color};">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+        <span style="font-size:28px;">${icon}</span>
+        <div>
+          <div style="font-size:13px;font-weight:700;letter-spacing:1px;">${label}</div>
+          <div style="font-size:10px;color:var(--text-dim);">${new Date().toLocaleString('es-MX')}</div>
+        </div>
+      </div>
+      <div style="background:rgba(0,0,0,0.2);border-radius:6px;padding:8px 10px;font-size:11px;color:var(--text-dim);max-height:80px;overflow-y:auto;margin-bottom:10px;white-space:pre-wrap;line-height:1.4;">${preview}${clean.length>200?'<span style="color:var(--text-dim);opacity:0.6;">…</span>':''}</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">
+        <a href="${downloadUrl}" download="${safeFilename}" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;background:${color};color:#fff;border:none;border-radius:5px;padding:8px 12px;font-size:12px;font-weight:600;cursor:pointer;text-decoration:none;font-family:inherit;">⬇ DESCARGAR ${label}</a>
+        <button onclick="this.parentElement.parentElement.parentElement.remove()" style="background:rgba(255,255,255,0.05);color:var(--text-dim);border:1px solid var(--border);border-radius:5px;padding:8px 10px;font-size:11px;cursor:pointer;font-family:inherit;">✕</button>
+      </div>
+      <div style="margin-top:8px;font-size:8px;color:var(--text-dim);opacity:0.5;text-align:center;">J.A.R.V.I.S v4.0.0 — Documento generado con tecnología de IA</div>
+    </div>
+  </div>`;
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+}
 function displayImageInChat(userPrompt, imgUrl, engine) {
   showMessages();
   const msgs = document.getElementById('messages');

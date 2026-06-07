@@ -334,12 +334,7 @@
           <span>Jarvis habla</span>
           <div class="toggle on" id="tts-toggle" onclick="toggleTTS()"></div>
         </div>
-        <div class="voice-toggle" style="margin-bottom:0;">
-          <span>Activación por voz</span>
-          <div class="toggle" id="wake-toggle" onclick="toggleWakeWord()"></div>
-        </div>
-        <div class="voice-status" id="wake-status" style="margin-top:6px;">🎤 Di "Hola JARVIS"</div>
-        <div class="voice-status" id="wake-indicator" style="display:none;color:var(--success);font-family:'Share Tech Mono',monospace;">⚡ Escuchando...</div>
+
       </div>
       <div class="divider"></div>
       <div class="sidebar-label">MEMORIA</div>
@@ -595,8 +590,6 @@ function initRecognition() {
 function startListening() {
   if(isListening){ recognition.stop(); return; }
   if(!recognition&&!initRecognition()) return;
-  // Si wake está activo, lo pausamos para evitar conflicto
-  if(wakeActive) { wakeActive = false; stopWakeWord(); document.getElementById('wake-toggle').classList.remove('on'); document.getElementById('wake-status').textContent = '🎤 Di "Hola JARVIS"'; }
   synth.cancel();
   try{ recognition.start(); }catch(e){}
 }
@@ -805,150 +798,6 @@ function sendSuggestion(t){ document.getElementById('input').value=t; sendMessag
 function clearChat(){ sessionHistory=[]; document.getElementById('messages').innerHTML=''; document.getElementById('messages').style.display='none'; document.getElementById('welcome').style.display='flex'; synth.cancel(); addLog('Sesión reiniciada'); }
 function handleKey(e){ if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMessage();} }
 function autoResize(el){ el.style.height='auto'; el.style.height=Math.min(el.scrollHeight,130)+'px'; }
-
-/* =========================================================
-   ACTIVACIÓN POR VOZ — "Hola JARVIS"
-   ========================================================= */
-let wakeActive = false;
-let wakeRecognition = null;
-let wakeCommandTimer = null;
-
-function toggleWakeWord() {
-  wakeActive = !wakeActive;
-  document.getElementById('wake-toggle').classList.toggle('on', wakeActive);
-  if(wakeActive) {
-    // Pedir permiso de micrófono explícitamente
-    navigator.mediaDevices.getUserMedia({audio:true}).then(function(stream){
-      stream.getTracks().forEach(t=>t.stop()); // solo para el permiso
-      startWakeWord();
-    }).catch(function(){
-      wakeActive = false;
-      document.getElementById('wake-toggle').classList.remove('on');
-      document.getElementById('wake-status').textContent = '❌ Micrófono bloqueado';
-      showToast('❌ Permiso de micrófono denegado');
-    });
-  } else {
-    stopWakeWord();
-  }
-}
-
-function startWakeWord() {
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if(!SR) { showToast('❌ Reconocimiento de voz no soportado'); wakeActive=false; return; }
-  const status = document.getElementById('wake-status');
-  const indicator = document.getElementById('wake-indicator');
-  status.textContent = '🎤 Escuchando... di "Hola JARVIS"';
-  indicator.style.display = 'block';
-
-  wakeRecognition = new SR();
-  wakeRecognition.lang = 'es-MX';
-  wakeRecognition.continuous = true;
-  wakeRecognition.interimResults = true;
-  wakeRecognition.maxAlternatives = 3;
-
-  wakeRecognition.onresult = function(e) {
-    if(!wakeActive) return;
-    for(let i = e.resultIndex; i < e.results.length; i++) {
-      const transcript = e.results[i][0].transcript.toLowerCase().trim();
-      // Buscar "hola jarvis", "jarvis", "oye jarvis", "hey jarvis" en cualquier parte
-      if(/(hola\s+)?(hey|oye)?\s*jarvis/i.test(transcript) && e.results[i].isFinal) {
-        stopWakeWord();
-        onWakeDetected();
-        return;
-      }
-    }
-  };
-
-  wakeRecognition.onerror = function(e) {
-    if(e.error === 'no-speech' || e.error === 'aborted') return;
-    if(e.error === 'network') { if(wakeActive) setTimeout(startWakeWord, 500); return; }
-    if(e.error === 'not-allowed') {
-      document.getElementById('wake-status').textContent = '❌ Micrófono bloqueado';
-      wakeActive = false;
-      document.getElementById('wake-toggle').classList.remove('on');
-      document.getElementById('wake-indicator').style.display = 'none';
-      return;
-    }
-    if(wakeActive) setTimeout(startWakeWord, 1500);
-  };
-
-  wakeRecognition.onend = function() {
-    if(wakeActive) setTimeout(startWakeWord, 100);
-  };
-
-  try { wakeRecognition.start(); } catch(e) {}
-}
-
-function stopWakeWord() {
-  if(wakeRecognition) {
-    try { wakeRecognition.stop(); } catch(e) {}
-    wakeRecognition = null;
-  }
-  const indicator = document.getElementById('wake-indicator');
-  if(indicator) indicator.style.display = 'none';
-}
-
-async function onWakeDetected() {
-  const status = document.getElementById('wake-status');
-  const indicator = document.getElementById('wake-indicator');
-  status.textContent = '🔴 ¿Qué necesitas?';
-  indicator.style.display = 'block';
-  indicator.style.color = 'var(--accent)';
-  indicator.textContent = '⚡ Escuchando comando...';
-
-  // Reproducir tono o hablar
-  try {
-    synth.cancel();
-    const utt = new SpeechSynthesisUtterance('¿Sí, señor?');
-    utt.voice = jarvisVoice; utt.rate = 0.9; utt.pitch = 0.85; utt.volume = 1; utt.lang = 'es-MX';
-    synth.speak(utt);
-  } catch(e) {}
-
-  // Escuchar comando
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if(!SR) return;
-  const cmdRec = new SR();
-  cmdRec.lang = 'es-MX';
-  cmdRec.continuous = false;
-  cmdRec.interimResults = false;
-
-  cmdRec.onresult = function(e) {
-    const cmd = e.results[0][0].transcript;
-    status.textContent = '✅ Procesando: "'+cmd+'"';
-    document.getElementById('input').value = cmd;
-    autoResize(document.getElementById('input'));
-    sendMessage();
-    // Reactivar wake después de un momento
-    setTimeout(() => {
-      if(wakeActive) {
-        indicator.style.display = 'none';
-        status.textContent = '🎤 Di "Hola JARVIS"';
-        indicator.style.color = 'var(--success)';
-        indicator.textContent = '⚡ Escuchando...';
-        startWakeWord();
-      }
-    }, 3000);
-  };
-
-  cmdRec.onerror = function() {
-    status.textContent = '🎤 Di "Hola JARVIS"';
-    indicator.style.display = 'none';
-    if(wakeActive) setTimeout(startWakeWord, 500);
-  };
-
-  cmdRec.onend = function() {
-    // Si no hubo resultado, reactivar wake
-    if(wakeActive) {
-      indicator.style.display = 'none';
-      status.textContent = '🎤 Di "Hola JARVIS"';
-      indicator.style.color = 'var(--success)';
-      indicator.textContent = '⚡ Escuchando...';
-      startWakeWord();
-    }
-  };
-
-  try { cmdRec.start(); } catch(e) {}
-}
 
 /* =========================================================
    FUNCIÓN: Preguntar a la IA por contenido

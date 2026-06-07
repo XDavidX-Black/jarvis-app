@@ -1034,17 +1034,26 @@ async function generateImage(userPrompt, skipUserMsg) {
     addLog('Generando imagen...');
     addMessage('user', `🎨 Generar imagen: "${userPrompt}"`);
   }
-  // Try Hugging Face first (if token is set and not the default compromised one)
-  if(hfToken && !hfToken.startsWith('hf_krsj')) {
-    try {
-      await generateImageHF(userPrompt);
-      return;
-    } catch(e) {
-      const errMsg = e.message;
-      addLog('HF falló: '+errMsg);
-      addMessage('ai', '⚠️ **HF no disponible:** '+errMsg+'\n\n_Usando Pollinations como fallback..._');
+  // Try server proxy (Railway IP — distinto a tu IP, evita rate limit de Pollinations)
+  try {
+    addLog('Probando servidor proxy...');
+    const body = { prompt: userPrompt };
+    if(hfToken && !hfToken.startsWith('hf_krsj')) body.token = hfToken;
+    const res = await fetch(SERVER+'/generate-image', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    if(res.ok) {
+      const blob = await res.blob();
+      if(blob.size > 100) {
+        const url = URL.createObjectURL(blob);
+        displayImageInChat(userPrompt, url, 'Servidor proxy');
+        return;
+      }
     }
-  }
+  } catch(e) { /* fall through */ }
+  // Fallback: direct Pollinations
   generateImagePollinations(userPrompt);
 }
 

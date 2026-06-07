@@ -376,6 +376,10 @@
           <span>Sonidos</span>
           <div class="toggle on" id="sound-toggle" onclick="toggleSound()"></div>
         </div>
+        <div class="voice-toggle">
+          <span>Voz natural (Google)</span>
+          <div class="toggle" id="natural-tts-toggle" onclick="toggleNaturalTTS()"></div>
+        </div>
         <div class="voice-toggle" style="flex-wrap:wrap;gap:4px;">
           <span style="width:100%;font-size:11px;opacity:0.7;">Voz</span>
           <div style="display:flex;gap:4px;width:100%;">
@@ -595,6 +599,7 @@ let mode = 'general';
 let sessionHistory = [];
 let loading = false;
 let ttsEnabled = true;
+let naturalTTS = false;
 let synth = window.speechSynthesis;
 let recognition = null;
 let isListening = false;
@@ -675,16 +680,29 @@ if(synth.onvoiceschanged!==undefined) synth.onvoiceschanged=loadVoices;
 function speak(text) {
   if(!ttsEnabled||!text) return;
   synth.cancel();
-  const clean=text.replace(/\*\*(.*?)\*\*/g,'$1').replace(/\*(.*?)\*/g,'$1').replace(/`(.*?)`/g,'$1').replace(/#{1,6}\s/g,'').replace(/\n/g,' ').substring(0,400);
+  if(audioPlayer) { audioPlayer.pause(); audioPlayer.src = ''; }
+  const clean=text.replace(/\*\*(.*?)\*\*/g,'$1').replace(/\*(.*?)\*/g,'$1').replace(/`(.*?)`/g,'$1').replace(/#{1,6}\s/g,'').replace(/\n/g,' ').substring(0,300);
+  const lang=jarvisVoice?jarvisVoice.lang:'es-MX';
+  if(naturalTTS) {
+    const url=SERVER+'/tts?text='+encodeURIComponent(clean)+'&lang='+encodeURIComponent(lang);
+    document.getElementById('speak-wave').classList.add('active');
+    document.getElementById('voice-status').textContent='Hablando...';
+    audioPlayer = new Audio(url);
+    audioPlayer.play();
+    audioPlayer.onended=function(){ document.getElementById('speak-wave').classList.remove('active'); document.getElementById('voice-status').textContent='En espera'; };
+    return;
+  }
   const utt=new SpeechSynthesisUtterance(clean);
   utt.voice=jarvisVoice; utt.rate=0.9; utt.pitch=0.85; utt.volume=1;
-  utt.lang=jarvisVoice?jarvisVoice.lang:'es-MX';
+  utt.lang=lang;
   utt.onstart=()=>{ document.getElementById('speak-wave').classList.add('active'); document.getElementById('voice-status').textContent='Hablando...'; };
   utt.onend=()=>{ document.getElementById('speak-wave').classList.remove('active'); document.getElementById('voice-status').textContent='En espera'; };
   synth.speak(utt);
 }
 
-function toggleTTS() { ttsEnabled=!ttsEnabled; document.getElementById('tts-toggle').classList.toggle('on',ttsEnabled); if(!ttsEnabled) synth.cancel(); }
+function toggleTTS() { ttsEnabled=!ttsEnabled; document.getElementById('tts-toggle').classList.toggle('on',ttsEnabled); if(!ttsEnabled) synth.cancel(); localStorage.setItem('jarvis_tts', ttsEnabled?'1':'0'); }
+function toggleNaturalTTS() { naturalTTS=!naturalTTS; document.getElementById('natural-tts-toggle').classList.toggle('on',naturalTTS); localStorage.setItem('jarvis_natural_tts', naturalTTS?'1':'0'); }
+let audioPlayer = new Audio();
 
 function initRecognition() {
   const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
@@ -1934,9 +1952,11 @@ loadMemory();
 loadFontSize();
 initThemes();
 initLangs();
-// Sonido y holograma (activo por defecto)
+// Sonido, holograma y voz natural
 if(localStorage.getItem('jarvis_sound') === '0') { soundEnabled = false; document.getElementById('sound-toggle').classList.remove('on'); }
 if(localStorage.getItem('jarvis_holo') !== '0') { setTimeout(function(){ toggleHologram(); }, 1000); }
+if(localStorage.getItem('jarvis_tts') === '0') { ttsEnabled = false; document.getElementById('tts-toggle').classList.remove('on'); }
+if(localStorage.getItem('jarvis_natural_tts') === '1') { naturalTTS = true; document.getElementById('natural-tts-toggle').classList.add('on'); }
 // Sonido de inicio
 setTimeout(function(){ playSound('startup'); }, 200);
 renderSessions();

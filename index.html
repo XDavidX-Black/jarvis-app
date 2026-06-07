@@ -1034,15 +1034,22 @@ async function generateImage(userPrompt, skipUserMsg) {
     addLog('Generando imagen...');
     addMessage('user', `🎨 Generar imagen: "${userPrompt}"`);
   }
-  // Try server proxy (Railway IP — distinto a tu IP, evita rate limit de Pollinations)
+  // 1) HF directo desde el navegador (si hay token válido)
+  if(hfToken && !hfToken.startsWith('hf_krsj')) {
+    try {
+      await generateImageHF(userPrompt);
+      return;
+    } catch(e) {
+      addLog('HF browser falló: '+e.message);
+    }
+  }
+  // 2) Servidor proxy (Railway -> Pollinations)
   try {
     addLog('Probando servidor proxy...');
-    const body = { prompt: userPrompt };
-    if(hfToken && !hfToken.startsWith('hf_krsj')) body.token = hfToken;
     const res = await fetch(SERVER+'/generate-image', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
+      body: JSON.stringify({ prompt: userPrompt })
     });
     if(res.ok) {
       const blob = await res.blob();
@@ -1053,7 +1060,7 @@ async function generateImage(userPrompt, skipUserMsg) {
       }
     }
   } catch(e) { /* fall through */ }
-  // Fallback: direct Pollinations
+  // 3) Pollinations directo (fallback final)
   generateImagePollinations(userPrompt);
 }
 

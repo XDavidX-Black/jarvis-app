@@ -9,6 +9,9 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <!-- SheetJS for Excel generation -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<!-- highlight.js for syntax highlighting -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
 <!-- PDF.js for reading PDFs -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script>pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
@@ -21,6 +24,7 @@
     --bg: #020b12; --panel: rgba(0,20,40,0.85);
     --border: rgba(0,212,255,0.2); --text: #cce8f4;
     --text-dim: rgba(204,232,244,0.5); --success: #00ff9d;
+    --font-size: 15px; --font-size-msg: 15px;
   }
   html, body { width:100%; height:100%; background:var(--bg); color:var(--text); font-family:'Rajdhani',sans-serif; overflow:hidden; }
   body::before { content:''; position:fixed; inset:0; background-image:linear-gradient(rgba(0,212,255,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(0,212,255,0.03) 1px,transparent 1px); background-size:40px 40px; pointer-events:none; z-index:0; }
@@ -106,7 +110,7 @@
   .msg-inner { display:flex; flex-direction:column; max-width:640px; }
   .msg.user .msg-inner { align-items:flex-end; }
   .msg-label { font-size:9px; letter-spacing:2px; color:var(--text-dim); font-family:'Share Tech Mono',monospace; margin-bottom:4px; }
-  .bubble { padding:11px 15px; border-radius:6px; font-size:15px; line-height:1.6; word-break:break-word; }
+  .bubble { padding:11px 15px; border-radius:6px; font-size:var(--font-size-msg); line-height:1.6; word-break:break-word; }
   .bubble.ai { background:rgba(0,20,40,0.7); border:1px solid var(--border); border-top-left-radius:2px; }
   .bubble.user { background:rgba(255,107,53,0.08); border:1px solid rgba(255,107,53,0.2); border-top-right-radius:2px; }
   .typing { display:flex; align-items:center; gap:5px; padding:4px 0; }
@@ -118,12 +122,41 @@
   .msg-img { max-width:320px; border-radius:6px; border:1px solid var(--border); margin-top:8px; cursor:pointer; transition:transform 0.2s; }
   .msg-img:hover { transform:scale(1.02); }
 
+  /* tables in chat */
+  .chat-table { width:100%; border-collapse:collapse; margin:8px 0; font-size:13px; }
+  .chat-table th, .chat-table td { border:1px solid var(--border); padding:6px 10px; text-align:left; }
+  .chat-table th { background:var(--primary-dim); color:var(--primary); font-family:'Share Tech Mono',monospace; font-size:10px; letter-spacing:1px; }
+  .chat-table td { color:var(--text); }
+
+  /* code blocks */
+  .chat-code { display:block; background:#0d1b2a; border:1px solid var(--border); border-radius:5px; padding:12px; margin:8px 0; font-family:'Share Tech Mono',monospace; font-size:12px; line-height:1.5; overflow-x:auto; white-space:pre; }
+  .chat-code code { background:none; padding:0; font-size:12px; }
+  .chat-code-header { font-size:9px; color:var(--text-dim); font-family:'Share Tech Mono',monospace; letter-spacing:1px; margin-bottom:6px; text-transform:uppercase; }
+
+  /* drag & drop zone */
+  .drop-zone { position:absolute; inset:0; z-index:30; display:none; align-items:center; justify-content:center; background:rgba(0,20,40,0.9); border:2px dashed var(--primary); border-radius:8px; margin:4px; pointer-events:none; }
+  .drop-zone.active { display:flex; pointer-events:auto; }
+  .drop-zone span { font-size:16px; font-weight:600; letter-spacing:4px; color:var(--primary); text-shadow:0 0 20px var(--primary-glow); }
+  .chat-area { position:relative; }
+
+  /* session list */
+  .session-item { display:flex; align-items:center; gap:6px; padding:6px 16px; cursor:pointer; font-size:11px; color:var(--text-dim); font-family:'Share Tech Mono',monospace; border-left:2px solid transparent; transition:all 0.2s; }
+  .session-item:hover { background:var(--primary-dim); color:var(--primary); border-left-color:var(--primary); }
+  .session-item .sess-del { margin-left:auto; color:rgba(255,107,53,0.4); cursor:pointer; font-size:10px; }
+  .session-item .sess-del:hover { color:var(--accent); }
+
+  /* font size slider */
+  .fs-box { margin:0 14px; padding:8px; }
+  .fs-label { font-size:9px; letter-spacing:2px; color:var(--text-dim); font-family:'Share Tech Mono',monospace; margin-bottom:6px; }
+  .fs-box input[type=range] { width:100%; height:3px; -webkit-appearance:none; background:var(--border); border-radius:2px; outline:none; }
+  .fs-box input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; width:14px; height:14px; border-radius:50%; background:var(--primary); border:2px solid var(--bg); cursor:pointer; }
+
   /* INPUT */
   .input-area { flex-shrink:0; padding:14px 24px 18px; border-top:1px solid var(--border); background:var(--panel); backdrop-filter:blur(20px); }
   .input-row { display:flex; gap:10px; align-items:flex-end; }
   .input-wrap { flex:1; position:relative; }
   .input-wrap::before { content:'//'; position:absolute; left:12px; top:13px; color:var(--primary); font-family:'Share Tech Mono',monospace; font-size:11px; opacity:0.5; pointer-events:none; }
-  textarea { width:100%; background:rgba(0,20,40,0.6); border:1px solid var(--border); border-radius:6px; color:var(--text); font-family:'Rajdhani',sans-serif; font-size:15px; padding:12px 14px 12px 36px; resize:none; outline:none; min-height:48px; max-height:130px; transition:border-color 0.2s,box-shadow 0.2s; line-height:1.5; overflow-y:auto; }
+  textarea { width:100%; background:rgba(0,20,40,0.6); border:1px solid var(--border); border-radius:6px; color:var(--text); font-family:'Rajdhani',sans-serif; font-size:var(--font-size); padding:12px 14px 12px 36px; resize:none; outline:none; min-height:48px; max-height:130px; transition:border-color 0.2s,box-shadow 0.2s; line-height:1.5; overflow-y:auto; }
   textarea::placeholder { color:var(--text-dim); }
   textarea:focus { border-color:rgba(0,212,255,0.4); box-shadow:0 0 0 2px rgba(0,212,255,0.08); }
   .mic-btn { width:48px; height:48px; flex-shrink:0; background:rgba(255,107,53,0.1); border:1px solid rgba(255,107,53,0.3); border-radius:6px; cursor:pointer; color:var(--accent); display:flex; align-items:center; justify-content:center; transition:all 0.2s; }
@@ -333,6 +366,25 @@
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg>
         Nueva Sesión
       </div>
+      <div class="divider"></div>
+      <div class="sidebar-label">SESIONES</div>
+      <div id="session-list" style="max-height:140px;overflow-y:auto;"></div>
+      <div class="divider"></div>
+      <div class="sidebar-label">APARIENCIA</div>
+      <div class="fs-box">
+        <div class="fs-label">TAMAÑO DE LETRA</div>
+        <input type="range" id="font-size-slider" min="12" max="22" value="15" step="1" oninput="changeFontSize(this.value)" style="margin-bottom:2px;">
+        <div style="text-align:right;font-size:10px;color:var(--text-dim);font-family:'Share Tech Mono',monospace;" id="fs-value">15px</div>
+      </div>
+      <div class="divider"></div>
+      <div class="sys-btn" onclick="exportChat()" style="font-size:11px;">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        EXPORTAR CHAT
+      </div>
+      <div class="sys-btn" onclick="getWeather()" style="font-size:11px;">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg>
+        CLIMA
+      </div>
     </div>
 
     <div class="chat-area">
@@ -364,6 +416,7 @@
           DETECTAR IP
         </button>
       </div>
+      <div class="drop-zone" id="drop-zone"><span>+ SOLTAR ARCHIVO</span></div>
       <input type="file" id="file-input" accept=".pdf,.txt,.csv,.xlsx,.xls,.jpg,.jpeg,.png,.gif,.webp" onchange="handleFileUpload(event)"/>
 
       <div class="welcome" id="welcome">
@@ -640,7 +693,45 @@ function addMessage(role,text,imgUrl){
   msgs.appendChild(div); msgs.scrollTop=msgs.scrollHeight;
 }
 
-function fmt(t){ return t.replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>').replace(/\*(.*?)\*/g,'<em>$1</em>').replace(/`(.*?)`/g,'<code style="font-family:Share Tech Mono,monospace;background:rgba(0,212,255,0.1);padding:1px 5px;border-radius:3px;font-size:13px">$1</code>').replace(/\n/g,'<br>'); }
+function fmt(t){
+  // code blocks with language (```javascript ... ```)
+  t = t.replace(/```(\w*)\s*([\s\S]*?)```/g, function(_, lang, code) {
+    const langLabel = lang ? '<div class="chat-code-header">'+lang+'</div>' : '';
+    const escaped = code.replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    try {
+      if(lang && hljs && hljs.getLanguage(lang)) {
+        const highlighted = hljs.highlight(code.trim(), {language: lang}).value;
+        return '<pre class="chat-code"><code>'+langLabel+highlighted+'</code></pre>';
+      }
+    } catch(e){}
+    return '<pre class="chat-code"><code>'+langLabel+escaped+'</code></pre>';
+  });
+  // inline code
+  t = t.replace(/`(.*?)`/g,'<code style="font-family:Share Tech Mono,monospace;background:rgba(0,212,255,0.1);padding:1px 5px;border-radius:3px;font-size:13px">$1</code>');
+  // pipe tables (| col1 | col2 | → <table>)
+  if(t.indexOf('|') > -1) {
+    const lines = t.split('\n');
+    let inTable = false, tableHtml = '', headerDone = false;
+    for(let i = 0; i < lines.length; i++) {
+      const l = lines[i].trim();
+      if(l.startsWith('|') && l.endsWith('|') && l.split('|').length >= 3) {
+        const cells = l.split('|').filter(c=>c.trim()).map(c=>c.trim());
+        // skip separator lines (| --- | --- |)
+        if(cells.every(c=>/^[-:]+$/.test(c.replace(/^:+/,'').replace(/:+$/,'')))) continue;
+        if(!inTable) { inTable = true; headerDone = false; tableHtml = '<table class="chat-table">'; }
+        if(!headerDone) { tableHtml += '<tr>'+cells.map(c=>'<th>'+c+'</th>').join('')+'</tr>'; headerDone = true; }
+        else { tableHtml += '<tr>'+cells.map(c=>'<td>'+c+'</td>').join('')+'</tr>'; }
+        lines[i] = '';
+      } else {
+        if(inTable) { tableHtml += '</table>'; lines[i] = tableHtml + '\n' + lines[i]; inTable = false; }
+      }
+    }
+    if(inTable) tableHtml += '</table>';
+    t = lines.join('\n');
+  }
+  // bold, italic, line breaks
+  return t.replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>').replace(/\*(.*?)\*/g,'<em>$1</em>').replace(/\n/g,'<br>');
+}
 
 function showTyping(){
   showMessages();
@@ -686,6 +777,18 @@ async function sendMessage(){
     } else if(/imagen|dibuja|dibujo|ilustra|crea\s*una\s*imagen/i.test(lower)) {
       generateImage(text, true);
     }
+    // Detectar recordatorios
+    const remindMatch = text.toLowerCase().match(/recuerda(?:me)?\s+(.+?)\s+en\s+(\d+)\s*(segundo|minuto|min|hora|s|m|h)/i);
+    if(remindMatch) {
+      const what = remindMatch[1].trim();
+      const num = parseInt(remindMatch[2]);
+      const unit = remindMatch[3].toLowerCase();
+      const ms = unit.startsWith('h') ? num*3600000 : unit.startsWith('m') ? num*60000 : num*1000;
+      if(ms < 86400000) setReminder(what, ms);
+      else addMessage('ai','⚠️ Máximo 24 horas para recordatorios.');
+    }
+    // Guardar sesión en localStorage
+    saveSession();
   }catch(err){
     removeTyping(); addMessage('ai','Error: '+err.message); addLog('Error');
   }
@@ -1156,6 +1259,163 @@ function showToast(msg) {
   setTimeout(()=>t.classList.remove('show'), 3000);
 }
 
+/* =========================================================
+   HISTORIAL DE SESIONES (localStorage)
+   ========================================================= */
+function saveSession() {
+  if(!sessionHistory.length) return;
+  const sessions = JSON.parse(localStorage.getItem('jarvis_sessions') || '[]');
+  const name = memory.name || 'Anónimo';
+  const preview = sessionHistory.map(m=>m.content.substring(0,40)).join(' ').substring(0,60);
+  const ts = Date.now();
+  // find existing session by first message or create new
+  const firstUser = sessionHistory.find(m=>m.role==='user');
+  const key = firstUser ? firstUser.content.substring(0,30) : ''+ts;
+  const existing = sessions.findIndex(s=>s.key===key && s.name===name);
+  const entry = { key, name, preview, ts, messages: sessionHistory.slice(-20) };
+  if(existing >= 0) sessions[existing] = entry;
+  else sessions.unshift(entry);
+  // keep max 10
+  while(sessions.length > 10) sessions.pop();
+  localStorage.setItem('jarvis_sessions', JSON.stringify(sessions));
+  renderSessions();
+}
+
+function renderSessions() {
+  const el = document.getElementById('session-list');
+  const sessions = JSON.parse(localStorage.getItem('jarvis_sessions') || '[]');
+  if(!sessions.length) { el.innerHTML = '<div style="font-size:10px;color:var(--text-dim);padding:0 16px;font-family:Share Tech Mono,monospace;">Sin sesiones guardadas</div>'; return; }
+  el.innerHTML = sessions.map(s => '<div class="session-item" onclick="restoreSession(\''+encodeURIComponent(JSON.stringify(s.messages))+'|||\'+this.dataset.idx)" data-idx="'+s.ts+'"><span class="sess-del" onclick="event.stopPropagation();deleteSession('+s.ts+')">✕</span><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+s.preview.substring(0,28)+'</span></div>').join('');
+}
+
+function restoreSession(data) {
+  try {
+    const msgs = JSON.parse(decodeURIComponent(data.split('|||')[0]));
+    clearChat();
+    setTimeout(() => {
+      sessionHistory = msgs;
+      for(const m of msgs) {
+        addMessage(m.role, m.content);
+      }
+      addLog('Sesión restaurada: '+msgs.length+' mensajes');
+      showToast('📂 Sesión restaurada');
+      closeSidebar();
+    }, 100);
+  } catch(e) { addLog('Error al restaurar'); }
+}
+
+function deleteSession(ts) {
+  let sessions = JSON.parse(localStorage.getItem('jarvis_sessions') || '[]');
+  sessions = sessions.filter(s=>s.ts!==ts);
+  localStorage.setItem('jarvis_sessions', JSON.stringify(sessions));
+  renderSessions();
+}
+
+/* =========================================================
+   ARRASTRAR Y SOLTAR ARCHIVOS
+   ========================================================= */
+function initDragDrop() {
+  const area = document.querySelector('.chat-area');
+  const zone = document.getElementById('drop-zone');
+  if(!area || !zone) return;
+  area.addEventListener('dragenter', function(e){ e.preventDefault(); zone.classList.add('active'); });
+  area.addEventListener('dragover', function(e){ e.preventDefault(); zone.classList.add('active'); });
+  area.addEventListener('dragleave', function(e){ if(!area.contains(e.relatedTarget)) zone.classList.remove('active'); });
+  area.addEventListener('drop', function(e){
+    e.preventDefault(); zone.classList.remove('active');
+    const files = e.dataTransfer.files;
+    if(files.length) {
+      const input = document.getElementById('file-input');
+      const dt = new DataTransfer();
+      dt.items.add(files[0]);
+      input.files = dt.files;
+      handleFileUpload({target: input});
+    }
+  });
+}
+
+/* =========================================================
+   EXPORTAR CHAT COMPLETO
+   ========================================================= */
+function exportChat() {
+  if(!sessionHistory.length) { showToast('⚠️ No hay mensajes para exportar'); return; }
+  let html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>JARVIS Chat Export</title><style>body{font-family:Arial,sans-serif;margin:30px;color:#1a1a2e;background:#f5f5f5;}.msg{margin:10px 0;padding:10px 14px;border-radius:6px;max-width:700px;}.user{background:#e3f2fd;margin-left:auto;border:1px solid #bbdefb;}.ai{background:#f3e5f5;border:1px solid #e1bee7;}.label{font-size:10px;color:#666;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;}h1{color:#0066cc;border-bottom:2px solid #0066cc;padding-bottom:6px;}.date{color:#999;font-size:11px;margin-bottom:20px;}</style></head><body><h1>J.A.R.V.I.S — Chat</h1><div class="date">'+new Date().toLocaleString('es-MX')+'</div>';
+  for(const m of sessionHistory) {
+    const role = m.role==='user' ? 'TÚ' : 'J.A.R.V.I.S';
+    html += '<div class="msg '+m.role+'"><div class="label">'+role+'</div>'+m.content.replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>')+'</div>';
+  }
+  html += '<div style="margin-top:30px;font-size:10px;color:#999;border-top:1px solid #ddd;padding-top:8px;">Generado por J.A.R.V.I.S v4.0.0</div></body></html>';
+  const blob = new Blob([html], {type:'text/html'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href=url; a.download='jarvis-chat-export.html'; a.click();
+  showToast('💬 Chat exportado');
+  addLog('Chat exportado');
+}
+
+/* =========================================================
+   CLIMA (wttr.in — gratis, sin API key)
+   ========================================================= */
+async function getWeather() {
+  addLog('Consultando clima...');
+  showTyping();
+  try {
+    const res = await fetch('https://wttr.in?format=%C|%t|%h|%w|%p&lang=es');
+    const text = await res.text();
+    const parts = text.split('|');
+    const condition = parts[0] || '—';
+    const temp = parts[1] || '—';
+    const humidity = parts[2] || '—';
+    const wind = parts[3] || '—';
+    const precip = parts[4] || '—';
+    removeTyping();
+    addMessage('ai', '🌤️ **Clima actual**\n\n☁️ **Estado:** '+condition+'\n🌡️ **Temperatura:** '+temp+'\n💧 **Humedad:** '+humidity+'\n💨 **Viento:** '+wind+'\n🌧️ **Precipitación:** '+precip+'\n\n📍 Basado en tu IP');
+    addLog('Clima recibido');
+  } catch(e) {
+    removeTyping();
+    addMessage('ai', '❌ No se pudo obtener el clima. Intenta más tarde.');
+    addLog('Error clima');
+  }
+}
+
+/* =========================================================
+   RECORDATORIOS (Notificación API)
+   ========================================================= */
+let reminders = JSON.parse(localStorage.getItem('jarvis_reminders') || '[]');
+
+function setReminder(what, ms) {
+  if(Notification.permission === 'default') Notification.requestPermission();
+  const when = new Date(Date.now() + ms);
+  const entry = { what, time: when.getTime(), id: Date.now() };
+  reminders.push(entry);
+  localStorage.setItem('jarvis_reminders', JSON.stringify(reminders));
+  addMessage('ai', '⏰ **Recordatorio guardado:** "'+what+'" en '+(ms>=3600000?(ms/3600000).toFixed(1)+'h':(ms>=60000?(ms/60000).toFixed(0)+'min':(ms/1000).toFixed(0)+'s'))+' ('+when.toLocaleTimeString('es-MX')+')');
+  addLog('Recordatorio: '+what);
+  showToast('⏰ Recordatorio en '+(ms>=3600000?(ms/3600000).toFixed(1)+'h':(ms/60000).toFixed(0)+'min'));
+  setTimeout(function(){
+    if(Notification.permission === 'granted') new Notification('J.A.R.V.I.S', { body: '⏰ '+what, icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="45" fill="%2300d4ff"/></svg>' });
+    addMessage('ai', '🔔 **Recordatorio:** '+what);
+    speak('Recordatorio: '+what);
+    reminders = reminders.filter(r=>r.id!==entry.id);
+    localStorage.setItem('jarvis_reminders', JSON.stringify(reminders));
+  }, ms);
+}
+
+/* =========================================================
+   TAMAÑO DE LETRA
+   ========================================================= */
+function changeFontSize(val) {
+  document.documentElement.style.setProperty('--font-size', val+'px');
+  document.documentElement.style.setProperty('--font-size-msg', (parseInt(val)-1)+'px');
+  document.getElementById('fs-value').textContent = val+'px';
+  localStorage.setItem('jarvis_font_size', val);
+}
+
+function loadFontSize() {
+  const val = localStorage.getItem('jarvis_font_size') || '15';
+  document.getElementById('font-size-slider').value = val;
+  changeFontSize(val);
+}
+
 // Sidebar toggle para móvil
 function toggleSidebar() {
   const sb = document.getElementById('sidebar');
@@ -1168,10 +1428,30 @@ function closeSidebar() {
   document.getElementById('sidebar-overlay').classList.remove('open');
 }
 
+// Check pending reminders on load
+(function checkPendingReminders(){
+  const now = Date.now();
+  for(const r of reminders) {
+    if(r.time > now) {
+      const remaining = r.time - now;
+      setTimeout(function(){
+        if(Notification.permission === 'granted') new Notification('J.A.R.V.I.S', { body: '⏰ '+r.what });
+        addMessage('ai', '🔔 **Recordatorio:** '+r.what);
+        speak('Recordatorio: '+r.what);
+        reminders = reminders.filter(x=>x.id!==r.id);
+        localStorage.setItem('jarvis_reminders', JSON.stringify(reminders));
+      }, remaining);
+    }
+  }
+})();
+
 // Auto-detect IP on load
 setTimeout(detectIP, 1500);
 
 loadMemory();
+loadFontSize();
+renderSessions();
+initDragDrop();
 updateImgEngineUI();
 document.getElementById('input').focus();
 </script>

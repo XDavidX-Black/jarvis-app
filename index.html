@@ -738,7 +738,7 @@ function selectVoice(name) {
 function testVoice() {
   if(!jarvisVoice) return;
   synth.cancel();
-  const utt=new SpeechSynthesisUtterance('Hola, soy J.A.R.V.I.S. Esta es mi nueva voz.');
+  const utt=new SpeechSynthesisUtterance('Hola, soy JARVIS. Esta es mi nueva voz.');
   utt.voice=jarvisVoice;
   utt.rate=0.9; utt.pitch=0.85; utt.volume=1;
   utt.lang=jarvisVoice.lang;
@@ -751,7 +751,7 @@ function speak(text) {
   if(!ttsEnabled||!text) return;
   synth.cancel();
   if(audioPlayer) { try { audioPlayer.pause(); audioPlayer.src = ''; } catch(e){} }
-  const clean=text.replace(/\*\*(.*?)\*\*/g,'$1').replace(/\*(.*?)\*/g,'$1').replace(/`(.*?)`/g,'$1').replace(/#{1,6}\s/g,'').replace(/\n/g,' ').substring(0,2000);
+  const clean=text.replace(/\*\*(.*?)\*\*/g,'$1').replace(/\*(.*?)\*/g,'$1').replace(/`(.*?)`/g,'$1').replace(/#{1,6}\s/g,'').replace(/\n/g,' ').replace(/J\.A\.R\.V\.I\.S/g,'JARVIS').replace(/\b(\d+)\.(\d+)\.(\d+)\.(\d+)\b/g,'$1 punto $2 punto $3 punto $4').substring(0,2000);
   if(!clean.trim()) return;
   const lang=jarvisVoice?jarvisVoice.lang:'es-MX';
   if(naturalTTS) {

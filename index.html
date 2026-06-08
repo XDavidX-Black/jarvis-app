@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>J.A.R.V.I.S — Personal AI</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='28' font-size='28'>🤖</text></svg>">
 <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@300;400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
@@ -712,6 +712,8 @@ let loading = false;
 let ttsEnabled = true;
 let naturalTTS = true;
 let synth = window.speechSynthesis;
+// Safety: catch unhandled errors to re-enable send button
+window.addEventListener('error',function(){ loading=false; var b=document.getElementById('send-btn'); if(b)b.disabled=false; });
 let ipDataCache = null;
 let weatherCache = null;
 let locationCache = null;
@@ -755,6 +757,7 @@ function buildSystem() {
 }
 
 function loadVoices() {
+  if(!synth) return;
   const v=synth.getVoices();
   if(!v.length) return;
   // Si no hay voz asignada, elegir la mejor disponible
@@ -783,12 +786,13 @@ function loadVoices() {
   if(saved) jarvisVoice=v.find(x=>x.name===saved)||jarvisVoice;
 }
 function selectVoice(name) {
+  if(!synth) return;
   const v=synth.getVoices();
   jarvisVoice=v.find(x=>x.name===name)||jarvisVoice;
   localStorage.setItem('jarvis_voice_name', name);
 }
 function testVoice() {
-  if(!jarvisVoice) return;
+  if(!jarvisVoice||!synth) return;
   synth.cancel();
   const utt=new SpeechSynthesisUtterance('Hola, soy JARVIS. Esta es mi nueva voz.');
   utt.voice=jarvisVoice;
@@ -796,11 +800,11 @@ function testVoice() {
   utt.lang=jarvisVoice.lang;
   synth.speak(utt);
 }
-loadVoices();
-if(synth.onvoiceschanged!==undefined) synth.onvoiceschanged=loadVoices;
+if(synth) loadVoices();
+if(synth&&synth.onvoiceschanged!==undefined) synth.onvoiceschanged=loadVoices;
 
 function speak(text) {
-  if(!ttsEnabled||!text) return;
+  if(!ttsEnabled||!text||!synth) return;
   synth.cancel();
   if(audioPlayer) { try { audioPlayer.pause(); audioPlayer.src = ''; } catch(e){} }
   let clean=text.replace(/\*\*(.*?)\*\*/g,'$1').replace(/\*(.*?)\*/g,'$1').replace(/`(.*?)`/g,'$1').replace(/#{1,6}\s/g,'').replace(/\n/g,' ').replace(/J\.A\.R\.V\.I\.S/g,'JARVIS').replace(/\b(\d+)\.(\d+)\.(\d+)\.(\d+)\b/g,'$1 punto $2 punto $3 punto $4'); try{ clean=clean.replace(/[\u{1F300}-\u{1FAFF}\u2300-\u23FF\u2600-\u27BF\uFE00-\uFE0F]/gu,''); }catch(e){ clean=clean.replace(/[\u2300-\u23FF\u2600-\u27BF]/g,'').replace(/\ud83c[\ud000-\udfff]|\ud83d[\ud000-\udfff]|\ud83e[\ud000-\udfff]/g,''); } clean=clean.replace(/\s{2,}/g,' ').trim().substring(0,2000);
@@ -824,7 +828,7 @@ function speak(text) {
 }
 
 function useLocalTTS(text,lang) {
-  const utt=new SpeechSynthesisUtterance(text);
+  if(!synth) return;
   utt.voice=jarvisVoice; utt.rate=0.9; utt.pitch=0.85; utt.volume=1;
   utt.lang=lang;
   utt.onstart=()=>{ var e1=document.getElementById('speak-wave'), e2=document.getElementById('voice-status'); if(e1) e1.classList.add('active'); if(e2) e2.textContent='Hablando...'; };
@@ -832,7 +836,7 @@ function useLocalTTS(text,lang) {
   synth.speak(utt);
 }
 
-function toggleTTS() { ttsEnabled=!ttsEnabled; document.getElementById('tts-toggle').classList.toggle('on',ttsEnabled); if(!ttsEnabled) synth.cancel(); localStorage.setItem('jarvis_tts', ttsEnabled?'1':'0'); }
+function toggleTTS() { ttsEnabled=!ttsEnabled; document.getElementById('tts-toggle').classList.toggle('on',ttsEnabled); if(!ttsEnabled&&synth) synth.cancel(); localStorage.setItem('jarvis_tts', ttsEnabled?'1':'0'); }
 function toggleNaturalTTS() { naturalTTS=!naturalTTS; document.getElementById('natural-tts-toggle').classList.toggle('on',naturalTTS); localStorage.setItem('jarvis_natural_tts', naturalTTS?'1':'0'); }
 let audioPlayer = new Audio();
 
@@ -1484,8 +1488,11 @@ async function sendMessage(){
   if(!text||loading) return;
   inp.value=''; inp.style.height='auto';
   loading=true; document.getElementById('send-btn').disabled=true;
-  synth.cancel(); addMessage('user',text); playSound('send');
+  // Safety timeout: re-enable after 15s no matter what
+  if (window._sendTimer) clearTimeout(window._sendTimer);
+  window._sendTimer = setTimeout(function(){ loading=false; document.getElementById('send-btn').disabled=false; }, 15000);
   try {
+  synth.cancel(); addMessage('user',text); playSound('send');
   // Detectar comandos locales antes de llamar a la IA
   const lower = text.toLowerCase();
   // Admin commands
@@ -1627,7 +1634,7 @@ async function sendMessage(){
   }catch(err){
     removeTyping(); const isRL = err.rateLimit || (err.message && /rate.limit|429|espera/i.test(err.message)); addMessage('ai','⚠️ **Error:** '+err.message+(isRL?'\n_⏳ Demasiadas peticiones. Espera 30 segundos y reintenta._':'\n_Reintenta en unos segundos._'));     addLog('Error: '+err.message); playSound('error'); setHoloState('idle');
   }
-  }finally{ loading=false; document.getElementById('send-btn').disabled=false; inp.focus(); }
+  }finally{ loading=false; document.getElementById('send-btn').disabled=false; inp.focus(); if (window._sendTimer) clearTimeout(window._sendTimer); }
 }
 
 function sendSuggestion(t){ document.getElementById('input').value=t; sendMessage(); }

@@ -2318,7 +2318,7 @@ async function getWeatherForCity(city) {
   showTyping();
   try {
     let query = city;
-    if(!/m[eé]xico/i.test(city)) query = city + ', México';
+    if(!/m[eé]xico|españa|venezuela|argentina|colombia|perú|chile|brasil|parís|londres|berlín|tokio|roma|madrid|lisboa/i.test(city)) query = city + ', México';
     let geo = await (await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=1&accept-language=es`, { headers: { 'User-Agent': 'JARVIS-Weather/1.0' } })).json();
     if(!geo || !geo.length) { geo = await (await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(city)}&format=json&limit=1&accept-language=es`, { headers: { 'User-Agent': 'JARVIS-Weather/1.0' } })).json(); }
     if(!geo || !geo.length) { removeTyping(); addMessage('ai','❌ No se encontró la ciudad "'+city+'".'); return; }

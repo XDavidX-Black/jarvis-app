@@ -1023,7 +1023,6 @@ function authShowReset() {
   document.getElementById('auth-pass').placeholder = 'Nueva contraseña...';
   document.getElementById('auth-pass').value = '';
   document.getElementById('auth-user').value = '';
-  // Add recovery code input
   if (!document.getElementById('auth-recovery-input')) {
     const inp = document.createElement('input');
     inp.type = 'text';
@@ -1031,9 +1030,27 @@ function authShowReset() {
     inp.placeholder = 'Código de recuperación...';
     inp.style.marginBottom = '6px';
     document.getElementById('auth-pass').insertAdjacentElement('afterend', inp);
+    const btn = document.createElement('div');
+    btn.id = 'auth-resend-btn';
+    btn.style.cssText = 'font-size:11px;color:var(--primary);cursor:pointer;text-align:center;margin-bottom:12px;';
+    btn.textContent = '📧 Reenviar código al correo';
+    btn.onclick = authResendRecovery;
+    inp.insertAdjacentElement('afterend', btn);
   }
   document.getElementById('auth-recovery-input').style.display = 'block';
+  document.getElementById('auth-resend-btn').style.display = 'block';
   document.getElementById('auth-error').style.display = 'none';
+}
+
+async function authResendRecovery() {
+  const email = document.getElementById('auth-user').value.trim();
+  if (!email) { authShowError('Ingresa tu correo primero'); return; }
+  try {
+    const res = await fetch(SERVER+'/api/resend-recovery', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({email}) });
+    const data = await res.json();
+    if (res.ok) authShowError('✅ Código enviado a '+email);
+    else authShowError('❌ '+data.error);
+  } catch(e) { authShowError('❌ Error: '+e.message); }
 }
 
 async function authDoReset() {

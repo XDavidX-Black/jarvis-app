@@ -900,7 +900,7 @@ function addMessage(role,text,imgUrl){
   if(isNearBottom) msgs.scrollTop=msgs.scrollHeight;
   // Auto-hablar mensajes del AI (excepto metadatos cortos)
   if(role==='ai' && text.length > 15 && !text.startsWith('🎨') && !text.startsWith('⏳') && !text.startsWith('📱') && !text.startsWith('📋') && !text.startsWith('⚠️') && !text.startsWith('❌') && !text.startsWith('✅') && !/^[\d\s:]+$/.test(text)) {
-    speak(text);
+    try { speak(text); } catch(e) { addLog('TTS error: ' + e.message); }
   }
 }
 

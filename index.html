@@ -1334,7 +1334,7 @@ async function sendMessage(){
   const adminReset = lower.match(/admin\s+(reset|restablecer)\s+(.+)/i);
   if (adminReset) { adminResetUser(adminReset[2].trim()); loading=false; document.getElementById('send-btn').disabled=false; inp.focus(); return; }
   if (lower === 'cerrar sesion' || lower === 'cerrar sesión' || lower === 'logout' || lower === 'salir') { authLogout(); loading=false; document.getElementById('send-btn').disabled=false; inp.focus(); return; }
-  if (lower === 'eliminar mi cuenta' || lower === 'borrar mi cuenta' || lower === 'delete my account') { authDeleteAccount(); loading=false; document.getElementById('send-btn').disabled=false; inp.focus(); return; }
+  if (lower.match(/eliminar\s+(mi\s+)?cuenta|borrar\s+(mi\s+)?cuenta|delete\s+(my\s+)?account/i)) { authDeleteAccount(); loading=false; document.getElementById('send-btn').disabled=false; inp.focus(); return; }
   // Clima por ciudad (flexible: "clima en X", "dame el clima de X", "cual es el clima en X")
   const cityWeather = lower.match(/(?:clima|weather|tiempo)\s+(?:en|de|para|por|desde\s+)?(.+)/i) || lower.match(/(?:dame|quiero|consulta|ver)\s+(?:el\s+)?clima\s+(?:en|de|para|por|desde)\s+(.+)/i) || lower.match(/(?:cual\s+es|como\s+esta|como\s+está|cómo\s+está|cómo\s+esta)\s+(?:el\s+)?(?:clima|tiempo)\s+(?:en|de|para|por|desde)\s+(.+)/i) || lower.match(/(?:qué|que|cómo|como)\s+(?:clima|tiempo)\s+(?:tiene|hace|hay|esta|está)\s+(?:en\s+)?(.+)/i);
   if(cityWeather) { getWeatherForCity(cityWeather[1].trim()); loading=false; document.getElementById('send-btn').disabled=false; inp.focus(); return; }

@@ -2295,7 +2295,7 @@ async function getWeather() {
     if(d.sunrise?.[0]) msg += '\n🌅 **Amanecer:** ' + new Date(d.sunrise[0]).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'}) + ' | 🌇 **Atardecer:** ' + new Date(d.sunset[0]).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
     removeTyping();
     addMessage('ai', msg);
-    addLog('Clima: ' + location + ' ' + temp);
+    addLog('Clima mostrado para ' + locationCache);
   } catch(e) {
     removeTyping();
     addMessage('ai', '❌ No se pudo obtener el clima. Intenta más tarde.');

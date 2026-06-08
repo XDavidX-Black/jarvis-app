@@ -751,7 +751,7 @@ function speak(text) {
   if(!ttsEnabled||!text) return;
   synth.cancel();
   if(audioPlayer) { try { audioPlayer.pause(); audioPlayer.src = ''; } catch(e){} }
-  const clean=text.replace(/\*\*(.*?)\*\*/g,'$1').replace(/\*(.*?)\*/g,'$1').replace(/`(.*?)`/g,'$1').replace(/#{1,6}\s/g,'').replace(/\n/g,' ').replace(/J\.A\.R\.V\.I\.S/g,'JARVIS').replace(/\b(\d+)\.(\d+)\.(\d+)\.(\d+)\b/g,'$1 punto $2 punto $3 punto $4').replace(/(\u00a9|\u00ae|[\u2000-\u3300]|\ud83c[\ud000-\udfff]|\ud83d[\ud000-\udfff]|\ud83e[\ud000-\udfff])/g,'').trim().substring(0,2000);
+  let clean=text.replace(/\*\*(.*?)\*\*/g,'$1').replace(/\*(.*?)\*/g,'$1').replace(/`(.*?)`/g,'$1').replace(/#{1,6}\s/g,'').replace(/\n/g,' ').replace(/J\.A\.R\.V\.I\.S/g,'JARVIS').replace(/\b(\d+)\.(\d+)\.(\d+)\.(\d+)\b/g,'$1 punto $2 punto $3 punto $4'); try{ clean=clean.replace(/[\u{1F300}-\u{1FAFF}\u2600-\u27BF\uFE00-\uFE0F]/gu,''); }catch(e){ clean=clean.replace(/[\u2000-\u3300]/g,'').replace(/\ud83c[\ud000-\udfff]|\ud83d[\ud000-\udfff]|\ud83e[\ud000-\udfff]/g,''); } clean=clean.replace(/\s{2,}/g,' ').trim().substring(0,2000);
   if(!clean.trim()) return;
   const lang=jarvisVoice?jarvisVoice.lang:'es-MX';
   if(naturalTTS) {

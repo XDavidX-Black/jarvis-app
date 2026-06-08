@@ -983,9 +983,11 @@ async function sendMessage(){
   synth.cancel(); addMessage('user',text); playSound('send');
   // Detectar comandos locales antes de llamar a la IA
   const lower = text.toLowerCase();
-  const cityWeather = lower.match(/^(clima|weather|tiempo)\s+(?:en|de|para|por|desde)\s+(.+)/i);
-  if(cityWeather) { getWeatherForCity(cityWeather[2].trim()); loading=false; document.getElementById('send-btn').disabled=false; inp.focus(); return; }
-  if(/^(clima|weather|tiempo|clima actual|clima hoy)\s*$/i.test(text)) { await getWeather(); loading=false; document.getElementById('send-btn').disabled=false; inp.focus(); return; }
+  // Clima por ciudad (flexible: "clima en X", "dame el clima de X", "cual es el clima en X")
+  const cityWeather = lower.match(/(?:clima|weather|tiempo)\s+(?:en|de|para|por|desde)\s+(.+)/i) || lower.match(/(?:dame|cual\s+es|como\s+esta|como\s+está|quiero|consulta|ver)\s+(?:el\s+)?clima\s+(?:en|de|para|por|desde)\s+(.+)/i);
+  if(cityWeather) { getWeatherForCity(cityWeather[1].trim()); loading=false; document.getElementById('send-btn').disabled=false; inp.focus(); return; }
+  // Clima actual (cualquier mensaje que pida clima sin mencionar ciudad)
+  if(/clima/i.test(lower) && !/laboral|organizacional|empresarial/i.test(lower)) { await getWeather(); loading=false; document.getElementById('send-btn').disabled=false; inp.focus(); return; }
   // Si hay imagen pendiente, enviar como multimodal
   let msgContent;
   if(pendingImage) {

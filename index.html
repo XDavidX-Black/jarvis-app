@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>J.A.R.V.I.S — Personal AI</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='28' font-size='28'>🤖</text></svg>">
 <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@300;400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
@@ -54,9 +54,10 @@
     --border: rgba(26,86,219,0.2); --text: #1a202c;
     --text-dim: rgba(26,32,44,0.55); --success: #059669; --bg-card: rgba(255,255,255,0.9);
   }
-  html { width:100%; height:100%; height:100dvh; }
-  body { width:100%; height:100%; height:100dvh; background:var(--bg); color:var(--text); font-family:'Rajdhani',sans-serif; overflow:hidden; -webkit-font-smoothing:antialiased; }
-  #app { position:relative; z-index:1; width:100%; height:100%; height:100dvh; display:flex; flex-direction:column; }
+  *, *::before, *::after { box-sizing:border-box; }
+  html { width:100%; height:100%; height:100vh; height:100dvh; overflow:hidden; }
+  body { width:100%; height:100%; height:100vh; height:100dvh; background:var(--bg); color:var(--text); font-family:'Rajdhani',sans-serif; overflow:hidden; -webkit-font-smoothing:antialiased; overscroll-behavior:none; }
+  #app { position:relative; z-index:1; width:100%; height:100%; height:100vh; height:100dvh; display:flex; flex-direction:column; }
 
   /* ===== SCROLLBAR GLOBAL ===== */
   ::-webkit-scrollbar { width:4px; height:4px; }
@@ -704,6 +705,8 @@
 
 <script>
 const SERVER = "https://jarvis-server-production-8be2.up.railway.app";
+// Server connectivity check on page load
+setTimeout(function(){ fetch(SERVER+'/',{method:'HEAD'}).catch(function(){ addLog('⚠️ Servidor no responde'); var el=document.getElementById('welcome-msg'); if(el&&el.textContent==='Cargando sistemas...') el.textContent='⚠️ Servidor no disponible. Revisa conexión.'; }); }, 3000);
 let memory = { name:"", job:"", interests:"", sessions:0, facts:[], chatHistory:[] };
 let hfToken = localStorage.getItem('jarvis_hf_token') || '';
 let mode = 'general';
@@ -1528,7 +1531,12 @@ async function sendMessage(){
     const apiMessages = sessionHistory.map(function(m){ return {role:m.role, content:m.content}; });
     if(Array.isArray(msgContent)) apiMessages[apiMessages.length-1].content = msgContent;
     const maxTok = Array.isArray(msgContent) ? 1000 : 512;
-    const res=await fetch(SERVER+'/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({system:buildSystem(),messages:apiMessages,max_tokens:maxTok})});
+    var controller=null, abortTimer=null;
+    if(typeof AbortController!=='undefined'){ controller=new AbortController(); abortTimer=setTimeout(function(){ controller.abort(); }, 30000); }
+    var fetchOpts={method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({system:buildSystem(),messages:apiMessages,max_tokens:maxTok})};
+    if(controller) fetchOpts.signal=controller.signal;
+    const res=await fetch(SERVER+'/chat', fetchOpts);
+    if(abortTimer) clearTimeout(abortTimer);
     const data=await res.json(); removeTyping();
     if(!res.ok) { const e=new Error(data.error || 'Servidor respondió '+res.status); if(data.rateLimit) e.rateLimit=true; throw e; }
     const reply=data.content?.[0]?.text;

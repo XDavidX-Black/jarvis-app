@@ -985,6 +985,7 @@ async function sendMessage(){
   const lower = text.toLowerCase();
   const cityWeather = lower.match(/^(clima|weather|tiempo)\s+(?:en|de|para|por|desde)\s+(.+)/i);
   if(cityWeather) { getWeatherForCity(cityWeather[2].trim()); loading=false; document.getElementById('send-btn').disabled=false; inp.focus(); return; }
+  if(/^(clima|weather|tiempo|clima actual|clima hoy)\s*$/i.test(text)) { await getWeather(); loading=false; document.getElementById('send-btn').disabled=false; inp.focus(); return; }
   // Si hay imagen pendiente, enviar como multimodal
   let msgContent;
   if(pendingImage) {

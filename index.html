@@ -659,14 +659,22 @@
 <div class="modal-overlay" id="auth-modal" style="display:none;">
   <div class="modal">
     <h3 id="auth-title">J.A.R.V.I.S</h3>
-    <p id="auth-sub">Inicia sesión o regístrate para usar J.A.R.V.I.S</p>
-    <label>USUARIO</label>
-    <input type="text" id="auth-user" placeholder="Tu nombre de usuario..." maxlength="20" autocomplete="username"/>
+    <p id="auth-sub">Inicia sesión con tu correo electrónico</p>
+    <label>CORREO ELECTRÓNICO</label>
+    <input type="email" id="auth-user" placeholder="tucorreo@ejemplo.com" maxlength="50" autocomplete="email"/>
     <label>CONTRASEÑA</label>
     <input type="password" id="auth-pass" placeholder="••••••••" autocomplete="current-password"/>
+    <div id="auth-recovery-box" style="display:none;margin-bottom:16px;text-align:center;">
+      <div style="font-size:28px;letter-spacing:6px;font-weight:700;color:var(--primary);background:rgba(0,212,255,0.08);border:1px dashed var(--primary);border-radius:8px;padding:14px;font-family:'Share Tech Mono',monospace;" id="auth-recovery-code"></div>
+      <div style="font-size:11px;color:var(--text-dim);margin-top:8px;">Guarda este código. Sin él no podrás recuperar tu cuenta.</div>
+      <button class="modal-btn" id="auth-recovery-note" style="margin-top:12px;font-size:13px;">YA LO GUARDÉ, CONTINUAR</button>
+    </div>
     <div id="auth-error" style="color:#ff6b6b;font-size:12px;margin-bottom:12px;display:none;"></div>
     <button class="modal-btn" id="auth-btn" onclick="authLogin()">INICIAR SESIÓN</button>
-    <div style="margin-top:12px;text-align:center;">
+    <div id="auth-forgot" style="margin-top:8px;text-align:center;">
+      <span style="font-size:11px;color:var(--text-dim);cursor:pointer;" onclick="authShowReset()">¿Olvidaste tu contraseña?</span>
+    </div>
+    <div style="margin-top:8px;text-align:center;">
       <span style="font-size:12px;color:var(--text-dim);cursor:pointer;" id="auth-toggle" onclick="authToggle()">¿No tienes cuenta? <strong style="color:var(--primary);">REGÍSTRATE</strong></span>
     </div>
   </div>
@@ -865,13 +873,13 @@ function updateUI() {
 }
 
 // ===== MULTI-USER AUTH =====
-let authState = { token: null, username: null, isOwner: false };
+let authState = { token: null, email: null, isOwner: false };
 let authMode = 'login';
 
 async function initAuth() {
   authState.token = localStorage.getItem('jarvis_auth_token');
-  authState.username = localStorage.getItem('jarvis_auth_user');
-  if (authState.token && authState.username) {
+  authState.email = localStorage.getItem('jarvis_auth_email');
+  if (authState.token && authState.email) {
     try {
       const res = await fetch(SERVER+'/api/user/load', { headers: { 'x-auth-token': authState.token } });
       if (!res.ok) throw new Error('Token expired');
@@ -882,17 +890,16 @@ async function initAuth() {
       updateUI();
       if (!memory.name) { document.getElementById('setup-modal').style.display='flex'; }
       else { document.getElementById('welcome-msg').textContent='Sesión #'+memory.sessions+'. ¿En qué puedo asistirte?'; addLog('Bienvenido, '+memory.name); setTimeout(()=>speak('Bienvenido de nuevo '+memory.name+'. Sesión '+memory.sessions+' iniciada.'),500); }
-      // Load per-user localStorage data
       if (data.notes) localStorage.setItem('jarvis_notes', JSON.stringify(data.notes));
       if (data.shopping) localStorage.setItem('jarvis_shopping', JSON.stringify(data.shopping));
       if (data.reminders) localStorage.setItem('jarvis_reminders', JSON.stringify(data.reminders));
       if (data.sessionHistory) sessionHistory = data.sessionHistory;
-      addLog('Auth: '+authState.username);
+      addLog('Auth: '+authState.email);
       return;
     } catch(e) {
       localStorage.removeItem('jarvis_auth_token');
-      localStorage.removeItem('jarvis_auth_user');
-      authState = { token: null, username: null, isOwner: false };
+      localStorage.removeItem('jarvis_auth_email');
+      authState = { token: null, email: null, isOwner: false };
     }
   }
   document.getElementById('auth-modal').style.display='flex';
@@ -903,16 +910,20 @@ function authToggle() {
   authMode = authMode === 'login' ? 'register' : 'login';
   if (authMode === 'register') {
     document.getElementById('auth-title').textContent = 'REGISTRO';
-    document.getElementById('auth-sub').textContent = 'Crea tu cuenta para usar J.A.R.V.I.S';
+    document.getElementById('auth-sub').textContent = 'Crea tu cuenta con tu correo electrónico';
     document.getElementById('auth-btn').textContent = 'CREAR CUENTA';
     document.getElementById('auth-btn').onclick = authRegister;
     document.getElementById('auth-toggle').innerHTML = '¿Ya tienes cuenta? <strong style="color:var(--primary);">INICIA SESIÓN</strong>';
+    document.getElementById('auth-forgot').style.display = 'none';
+    document.getElementById('auth-recovery-box').style.display = 'none';
   } else {
     document.getElementById('auth-title').textContent = 'J.A.R.V.I.S';
-    document.getElementById('auth-sub').textContent = 'Inicia sesión para usar J.A.R.V.I.S';
+    document.getElementById('auth-sub').textContent = 'Inicia sesión con tu correo electrónico';
     document.getElementById('auth-btn').textContent = 'INICIAR SESIÓN';
     document.getElementById('auth-btn').onclick = authLogin;
     document.getElementById('auth-toggle').innerHTML = '¿No tienes cuenta? <strong style="color:var(--primary);">REGÍSTRATE</strong>';
+    document.getElementById('auth-forgot').style.display = 'block';
+    document.getElementById('auth-recovery-box').style.display = 'none';
   }
   document.getElementById('auth-error').style.display = 'none';
 }
@@ -924,16 +935,16 @@ function authShowError(msg) {
 }
 
 async function authLogin() {
-  const username = document.getElementById('auth-user').value.trim();
+  const email = document.getElementById('auth-user').value.trim();
   const password = document.getElementById('auth-pass').value;
-  if (!username || !password) { authShowError('Completa todos los campos'); return; }
+  if (!email || !password) { authShowError('Completa todos los campos'); return; }
   try {
-    const res = await fetch(SERVER+'/api/login', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({username, password}) });
+    const res = await fetch(SERVER+'/api/login', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({email, password}) });
     const data = await res.json();
     if (!res.ok) { authShowError(data.error || 'Error de conexión'); return; }
-    authState = { token: data.token, username, isOwner: data.isOwner };
+    authState = { token: data.token, email, isOwner: data.isOwner };
     localStorage.setItem('jarvis_auth_token', data.token);
-    localStorage.setItem('jarvis_auth_user', username);
+    localStorage.setItem('jarvis_auth_email', email);
     if (data.data) {
       const d = data.data;
       memory = { ...memory, name: d.name||'', job: d.job||'', interests: d.interests||'', facts: d.facts||[], chatHistory: d.chatHistory||[], sessions: d.sessions||0 };
@@ -952,21 +963,107 @@ async function authLogin() {
 }
 
 async function authRegister() {
-  const username = document.getElementById('auth-user').value.trim();
+  const email = document.getElementById('auth-user').value.trim();
   const password = document.getElementById('auth-pass').value;
-  if (!username || !password) { authShowError('Completa todos los campos'); return; }
+  if (!email || !password) { authShowError('Completa todos los campos'); return; }
+  if (!email.includes('@')) { authShowError('Ingresa un correo válido'); return; }
   if (password.length < 4) { authShowError('La contraseña debe tener al menos 4 caracteres'); return; }
   try {
-    const res = await fetch(SERVER+'/api/register', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({username, password}) });
+    const res = await fetch(SERVER+'/api/register', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({email, password}) });
     const data = await res.json();
     if (!res.ok) { authShowError(data.error || 'Error de conexión'); return; }
-    authState = { token: data.token, username, isOwner: data.isOwner };
+    authState = { token: data.token, email, isOwner: data.isOwner };
     localStorage.setItem('jarvis_auth_token', data.token);
-    localStorage.setItem('jarvis_auth_user', username);
-    document.getElementById('auth-modal').style.display = 'none';
-    document.getElementById('setup-modal').style.display = 'flex';
-    addLog('Registrado: '+username+(data.isOwner?' (dueño)':''));
+    localStorage.setItem('jarvis_auth_email', email);
+    document.getElementById('auth-btn').style.display = 'none';
+    document.getElementById('auth-toggle').style.display = 'none';
+    document.getElementById('auth-pass').style.display = 'none';
+    document.getElementById('auth-user').style.display = 'none';
+    document.getElementById('auth-forgot').style.display = 'none';
+    document.getElementById('auth-title').textContent = '¡CÓDIGO DE RECUPERACIÓN!';
+    document.getElementById('auth-sub').textContent = 'Guarda este código en un lugar seguro. Lo necesitarás si olvidas tu contraseña.';
+    document.getElementById('auth-recovery-box').style.display = 'block';
+    document.getElementById('auth-recovery-code').textContent = data.recoveryCode;
+    document.getElementById('auth-recovery-note').onclick = function(){ authContinue(); };
+    addLog('Registrado: '+email+(data.isOwner?' (dueño)':''));
   } catch(e) { authShowError('Error de conexión: '+e.message); }
+}
+
+function authContinue() {
+  document.getElementById('auth-modal').style.display = 'none';
+  document.getElementById('setup-modal').style.display = 'flex';
+  authResetModal();
+}
+
+function authResetModal() {
+  document.getElementById('auth-btn').style.display = 'block';
+  document.getElementById('auth-toggle').style.display = 'block';
+  document.getElementById('auth-pass').style.display = 'block';
+  document.getElementById('auth-user').style.display = 'block';
+  document.getElementById('auth-user').value = '';
+  document.getElementById('auth-pass').value = '';
+  document.getElementById('auth-recovery-box').style.display = 'none';
+  authMode = 'login';
+  document.getElementById('auth-title').textContent = 'J.A.R.V.I.S';
+  document.getElementById('auth-sub').textContent = 'Inicia sesión con tu correo electrónico';
+  document.getElementById('auth-btn').textContent = 'INICIAR SESIÓN';
+  document.getElementById('auth-btn').onclick = authLogin;
+  document.getElementById('auth-toggle').innerHTML = '¿No tienes cuenta? <strong style="color:var(--primary);">REGÍSTRATE</strong>';
+  document.getElementById('auth-forgot').style.display = 'block';
+}
+
+function authShowReset() {
+  document.getElementById('auth-title').textContent = 'RECUPERAR CONTRASEÑA';
+  document.getElementById('auth-sub').textContent = 'Ingresa tu correo y el código de recuperación';
+  document.getElementById('auth-btn').textContent = 'RESTABLECER';
+  document.getElementById('auth-btn').onclick = authDoReset;
+  document.getElementById('auth-toggle').innerHTML = '<strong style="color:var(--primary);">VOLVER AL LOGIN</strong>';
+  document.getElementById('auth-toggle').onclick = function(){ authResetModal(); };
+  document.getElementById('auth-forgot').style.display = 'none';
+  document.getElementById('auth-pass').placeholder = 'Nueva contraseña...';
+  document.getElementById('auth-pass').value = '';
+  document.getElementById('auth-user').value = '';
+  // Add recovery code input
+  if (!document.getElementById('auth-recovery-input')) {
+    const inp = document.createElement('input');
+    inp.type = 'text';
+    inp.id = 'auth-recovery-input';
+    inp.placeholder = 'Código de recuperación...';
+    inp.style.marginBottom = '6px';
+    document.getElementById('auth-pass').insertAdjacentElement('afterend', inp);
+  }
+  document.getElementById('auth-recovery-input').style.display = 'block';
+  document.getElementById('auth-error').style.display = 'none';
+}
+
+async function authDoReset() {
+  const email = document.getElementById('auth-user').value.trim();
+  const recoveryCode = document.getElementById('auth-recovery-input').value.trim();
+  const newPassword = document.getElementById('auth-pass').value;
+  if (!email || !recoveryCode || !newPassword) { authShowError('Completa todos los campos'); return; }
+  if (newPassword.length < 4) { authShowError('La contraseña debe tener al menos 4 caracteres'); return; }
+  try {
+    const res = await fetch(SERVER+'/api/reset-password', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({email, recoveryCode, newPassword}) });
+    const data = await res.json();
+    if (!res.ok) { authShowError(data.error || 'Error'); return; }
+    authState = { token: data.token, email, isOwner: data.isOwner };
+    localStorage.setItem('jarvis_auth_token', data.token);
+    localStorage.setItem('jarvis_auth_email', email);
+    if (data.data) {
+      const d = data.data;
+      memory = { ...memory, name: d.name||'', job: d.job||'', interests: d.interests||'', facts: d.facts||[], chatHistory: d.chatHistory||[], sessions: d.sessions||0 };
+      if (d.notes) localStorage.setItem('jarvis_notes', JSON.stringify(d.notes));
+      if (d.shopping) localStorage.setItem('jarvis_shopping', JSON.stringify(d.shopping));
+      if (d.reminders) localStorage.setItem('jarvis_reminders', JSON.stringify(d.reminders));
+      if (d.sessionHistory) sessionHistory = d.sessionHistory;
+    }
+    document.getElementById('auth-recovery-input').style.display = 'none';
+    document.getElementById('auth-recovery-input').value = '';
+    authResetModal();
+    document.getElementById('auth-modal').style.display = 'none';
+    updateUI();
+    addMessage('ai', '✅ Contraseña restablecida correctamente.');
+  } catch(e) { authShowError('Error: '+e.message); }
 }
 
 async function syncUserData() {
@@ -985,9 +1082,9 @@ async function syncUserData() {
 
 function authLogout() {
   if (!confirm('¿Cerrar sesión?')) return;
-  authState = { token: null, username: null, isOwner: false };
+  authState = { token: null, email: null, isOwner: false };
   localStorage.removeItem('jarvis_auth_token');
-  localStorage.removeItem('jarvis_auth_user');
+  localStorage.removeItem('jarvis_auth_email');
   memory = { name:'', job:'', interests:'', sessions:0, facts:[], chatHistory:[] };
   sessionHistory = [];
   document.getElementById('messages').innerHTML = '';
@@ -1007,21 +1104,36 @@ function showAdmin() {
       users.forEach(u => {
         const created = new Date(u.created).toLocaleDateString('es-MX');
         const last = new Date(u.lastLogin).toLocaleDateString('es-MX');
-        msg += `\n${u.isOwner ? '👑' : '👤'} **${u.username}** ${u.isOwner ? '(dueño)' : ''}\n   └ Creado: ${created} | Último acceso: ${last}`;
-        if (!u.isOwner) msg += ` | [Eliminar](/admin/del/${u.username})`;
+        const nombre = u.name || '(sin perfil)';
+        msg += `\n${u.isOwner ? '👑' : '👤'} **${u.email}** ${u.isOwner ? '(dueño)' : ''}\n   └ ${nombre} — Creado: ${created} — Último acceso: ${last}`;
+        if (!u.isOwner) {
+          msg += `\n   └ [Eliminar](/admin/del/${u.email}) | [Reset clave](/admin/reset/${u.email})`;
+        }
       });
-      msg += '\n\nPara eliminar un usuario: `admin eliminar NOMBRE`';
+      msg += '\n\nComandos:\n`admin eliminar EMAIL` — eliminar usuario\n`admin reset EMAIL` — resetear clave de usuario';
       addMessage('ai', msg);
     })
     .catch(e => addMessage('ai', '❌ Error: '+e.message));
 }
 
-async function adminDeleteUser(username) {
+async function adminDeleteUser(email) {
   if (!authState.isOwner) return;
   try {
-    const res = await fetch(SERVER+'/api/admin/user/'+encodeURIComponent(username), { method:'DELETE', headers: { 'x-auth-token': authState.token } });
+    const res = await fetch(SERVER+'/api/admin/user/'+encodeURIComponent(email), { method:'DELETE', headers: { 'x-auth-token': authState.token } });
     const data = await res.json();
-    if (res.ok) addMessage('ai', '✅ Usuario **'+username+'** eliminado.');
+    if (res.ok) addMessage('ai', '✅ Usuario **'+email+'** eliminado.');
+    else addMessage('ai', '❌ '+data.error);
+  } catch(e) { addMessage('ai', '❌ Error: '+e.message); }
+}
+
+async function adminResetUser(email) {
+  if (!authState.isOwner) return;
+  const newPass = prompt('Nueva contraseña para '+email+':');
+  if (!newPass || newPass.length < 4) { addMessage('ai','❌ Debe tener al menos 4 caracteres'); return; }
+  try {
+    const res = await fetch(SERVER+'/api/admin/reset-password', { method:'POST', headers:{'Content-Type':'application/json','x-auth-token':authState.token}, body:JSON.stringify({email, newPassword: newPass}) });
+    const data = await res.json();
+    if (res.ok) addMessage('ai', '✅ Contraseña de **'+email+'** restablecida.');
     else addMessage('ai', '❌ '+data.error);
   } catch(e) { addMessage('ai', '❌ Error: '+e.message); }
 }
@@ -1185,6 +1297,8 @@ async function sendMessage(){
   if (lower === 'admin usuarios' || lower === 'admin users' || lower === 'panel admin' || lower === 'admin panel') { showAdmin(); loading=false; document.getElementById('send-btn').disabled=false; inp.focus(); return; }
   const adminDel = lower.match(/admin\s+(eliminar|delete|borrar)\s+(.+)/i);
   if (adminDel) { adminDeleteUser(adminDel[2].trim()); loading=false; document.getElementById('send-btn').disabled=false; inp.focus(); return; }
+  const adminReset = lower.match(/admin\s+(reset|restablecer)\s+(.+)/i);
+  if (adminReset) { adminResetUser(adminReset[2].trim()); loading=false; document.getElementById('send-btn').disabled=false; inp.focus(); return; }
   if (lower === 'cerrar sesion' || lower === 'cerrar sesión' || lower === 'logout' || lower === 'salir') { authLogout(); loading=false; document.getElementById('send-btn').disabled=false; inp.focus(); return; }
   // Clima por ciudad (flexible: "clima en X", "dame el clima de X", "cual es el clima en X")
   const cityWeather = lower.match(/(?:clima|weather|tiempo)\s+(?:en|de|para|por|desde\s+)?(.+)/i) || lower.match(/(?:dame|quiero|consulta|ver)\s+(?:el\s+)?clima\s+(?:en|de|para|por|desde)\s+(.+)/i) || lower.match(/(?:cual\s+es|como\s+esta|como\s+está|cómo\s+está|cómo\s+esta)\s+(?:el\s+)?(?:clima|tiempo)\s+(?:en|de|para|por|desde)\s+(.+)/i) || lower.match(/(?:qué|que|cómo|como)\s+(?:clima|tiempo)\s+(?:tiene|hace|hay|esta|está)\s+(?:en\s+)?(.+)/i);
@@ -2518,10 +2632,7 @@ async function getWeatherForCity(city) {
   addLog('Buscando clima: ' + city);
   showTyping();
   try {
-    let query = city;
-    if(!/m[eé]xico|españa|venezuela|argentina|colombia|perú|chile|brasil|parís|londres|berlín|tokio|roma|madrid|lisboa/i.test(city)) query = city + ', México';
-    let geo = await (await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=1&accept-language=es`, { headers: { 'User-Agent': 'JARVIS-Weather/1.0' } })).json();
-    if(!geo || !geo.length) { geo = await (await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(city)}&format=json&limit=1&accept-language=es`, { headers: { 'User-Agent': 'JARVIS-Weather/1.0' } })).json(); }
+    const geo = await (await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(city)}&format=json&limit=1&accept-language=es`, { headers: { 'User-Agent': 'JARVIS-Weather/1.0' } })).json();
     if(!geo || !geo.length) { removeTyping(); addMessage('ai','❌ No se encontró la ciudad "'+city+'".'); return; }
     const lat = geo[0].lat, lon = geo[0].lon;
     const display = geo[0].display_name;

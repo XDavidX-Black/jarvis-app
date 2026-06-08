@@ -100,6 +100,7 @@
   .tools-bar { flex-shrink:0; display:flex; align-items:center; gap:6px; padding:8px 20px; border-bottom:1px solid var(--panel-border); background:rgba(0,0,0,0.2); overflow-x:auto; }
   .tool-btn { display:flex; align-items:center; gap:6px; padding:6px 12px; border:1px solid var(--border); background:var(--primary-dim); color:var(--primary); border-radius:var(--radius-sm); cursor:pointer; font-family:'Share Tech Mono',monospace; font-size:10px; letter-spacing:1px; white-space:nowrap; transition:all 0.2s; }
   .tool-btn:hover { background:rgba(0,212,255,0.25); border-color:var(--primary); transform:translateY(-1px); box-shadow:0 2px 8px rgba(0,0,0,0.2); }
+  .tool-btn.active { background:var(--accent); border-color:var(--accent); color:#fff; }
   .tool-btn svg { flex-shrink:0; }
   #file-input { display:none; }
 
@@ -524,6 +525,14 @@
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
           DETECTAR IP
         </button>
+        <button class="tool-btn" id="wake-btn" onclick="toggleWakeWord()" title="Wake word: di 'Jarvis' para activar">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+          🎤
+        </button>
+        <button class="tool-btn" id="prox-btn" onclick="toggleProximity()" title="Activar por proximidad (APK)">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          👁
+        </button>
       </div>
       <div class="drop-zone" id="drop-zone"><span>+ SOLTAR ARCHIVO</span></div>
       <div class="search-bar" id="search-bar">
@@ -889,7 +898,7 @@ async function initAuth() {
       syncUserData();
       updateUI();
       if (!memory.name) { document.getElementById('setup-modal').style.display='flex'; }
-      else { document.getElementById('welcome-msg').textContent='Sesión #'+memory.sessions+'. ¿En qué puedo asistirte?'; addLog('Bienvenido, '+memory.name); setTimeout(()=>speak('Bienvenido de nuevo '+memory.name+'. Sesión '+memory.sessions+' iniciada.'),500); }
+      else { document.getElementById('welcome-msg').textContent='Sesión #'+memory.sessions+'. ¿En qué puedo asistirte?'; addLog('Bienvenido, '+memory.name); setTimeout(()=>speak('Bienvenido de nuevo '+memory.name+'. Sesión '+memory.sessions+' iniciada.'),500); autoWelcome(); }
       if (data.notes) localStorage.setItem('jarvis_notes', JSON.stringify(data.notes));
       if (data.shopping) localStorage.setItem('jarvis_shopping', JSON.stringify(data.shopping));
       if (data.reminders) localStorage.setItem('jarvis_reminders', JSON.stringify(data.reminders));
@@ -957,7 +966,7 @@ async function authLogin() {
     document.getElementById('auth-modal').style.display = 'none';
     updateUI();
     if (!memory.name) { document.getElementById('setup-modal').style.display='flex'; }
-    else { document.getElementById('welcome-msg').textContent='Sesión #'+memory.sessions+'. ¿En qué puedo asistirte?'; addLog('Bienvenido, '+memory.name); setTimeout(()=>speak('Bienvenido de nuevo '+memory.name+'. Sesión '+memory.sessions+' iniciada.'),500); }
+    else { document.getElementById('welcome-msg').textContent='Sesión #'+memory.sessions+'. ¿En qué puedo asistirte?'; addLog('Bienvenido, '+memory.name); setTimeout(()=>speak('Bienvenido de nuevo '+memory.name+'. Sesión '+memory.sessions+' iniciada.'),500); autoWelcome(); }
     syncUserData();
   } catch(e) { authShowError('Error de conexión: '+e.message); }
 }
@@ -1109,6 +1118,130 @@ async function syncUserData() {
   fetch(SERVER+'/api/user/save', { method:'POST', headers:{'Content-Type':'application/json','x-auth-token':authState.token}, body:JSON.stringify(data) }).catch(function(){});
 }
 
+// ===== APK FEATURES: Wake word, Proximidad, Auto Welcome =====
+function isAndroidWebView() {
+  return /wv|Android.*Chrome\/[.0-9]*$/.test(navigator.userAgent) || /Android/.test(navigator.userAgent) && !/Chrome\/[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+/.test(navigator.userAgent);
+}
+
+// Wake word
+let wakeActive = false;
+let wakeRec = null;
+
+function startWakeWord() {
+  if (wakeRec) { try { wakeRec.stop(); } catch(e) {} wakeRec = null; }
+  if (!wakeActive) return;
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) { showToast('❌ SpeechRecognition no soportado'); return; }
+  wakeRec = new SR();
+  wakeRec.continuous = true;
+  wakeRec.interimResults = true;
+  wakeRec.lang = 'es-MX';
+  wakeRec.onresult = function(e) {
+    for (var i = e.resultIndex; i < e.results.length; i++) {
+      var t = e.results[i][0].transcript.toLowerCase();
+      if (t.indexOf('jarvis') > -1 || t.indexOf('j.a.r.v.i.s') > -1) {
+        try { wakeRec.stop(); } catch(ex) {}
+        document.getElementById('input').focus();
+        addMessage('ai', '🟢 Te escucho. Di tu comando.');
+        try { speak('Te escucho'); } catch(ex) {}
+        setTimeout(function(){ if (wakeActive) startWakeWord(); }, 4000);
+        return;
+      }
+    }
+  };
+  wakeRec.onend = function() { if (wakeActive) setTimeout(startWakeWord, 500); };
+  wakeRec.onerror = function() { if (wakeActive) setTimeout(startWakeWord, 1500); };
+  try { wakeRec.start(); } catch(e) { setTimeout(function(){ if (wakeActive) startWakeWord(); }, 1000); }
+}
+
+function stopWakeWord() {
+  wakeActive = false;
+  if (wakeRec) { try { wakeRec.stop(); } catch(e) {} wakeRec = null; }
+}
+
+function toggleWakeWord() {
+  var btn = document.getElementById('wake-btn');
+  wakeActive = !wakeActive;
+  if (wakeActive) {
+    btn.classList.add('active');
+    startWakeWord();
+    showToast('🟢 Wake word activada — di "Jarvis"');
+  } else {
+    btn.classList.remove('active');
+    stopWakeWord();
+    showToast('🔴 Wake word desactivada');
+  }
+}
+
+// Proximidad
+let proxActive = false;
+
+function startProximity() {
+  if (!window.AndroidProximity) return;
+  window._onProxChange = function(near) {
+    if (near) {
+      document.getElementById('input').focus();
+      if (!document.querySelector('#messages .msg:last-child .bubble') || Date.now() - lastProxTrigger > 5000) {
+        lastProxTrigger = Date.now();
+        addMessage('ai', '🖐️ ¿En qué puedo ayudarte?');
+        try { speak('En qué puedo ayudarte'); } catch(e) {}
+      }
+    }
+  };
+  AndroidProximity.startListening();
+}
+var lastProxTrigger = 0;
+
+function stopProximity() {
+  if (window.AndroidProximity) AndroidProximity.stopListening();
+}
+
+function toggleProximity() {
+  var btn = document.getElementById('prox-btn');
+  proxActive = !proxActive;
+  if (proxActive) {
+    if (!window.AndroidProximity) { showToast('❌ Solo disponible en APK'); proxActive = false; return; }
+    btn.classList.add('active');
+    startProximity();
+    showToast('🟢 Proximidad activada — acerca la mano');
+  } else {
+    btn.classList.remove('active');
+    stopProximity();
+    showToast('🔴 Proximidad desactivada');
+  }
+}
+
+// Auto welcome al abrir APK
+function autoWelcome() {
+  if (!isAndroidWebView()) return;
+  if (!memory.name) return;
+  setTimeout(function() {
+    var now = new Date();
+    var h = now.getHours();
+    var saludo = h < 12 ? 'Buenos días' : h < 18 ? 'Buenas tardes' : 'Buenas noches';
+    addMessage('ai', '🌟 **' + saludo + ', ' + memory.name + '**\n📅 ' + now.toLocaleDateString('es-MX', { weekday:'long', day:'numeric', month:'long', year:'numeric' }) + '\n🕐 ' + now.toLocaleTimeString('es-MX', { hour:'2-digit', minute:'2-digit' }) + '\n\n*Sistemas listos. ¿En qué necesitas asistencia?*');
+    try { speak(saludo + ' ' + memory.name + '. Sistemas listos.'); } catch(e) {}
+    if (locationCache) addMessage('ai', '📍 ' + locationCache);
+    if (weatherCache) addMessage('ai', '🌤 ' + weatherCache);
+  }, 2000);
+}
+
+// Macro: Jarvis atiende
+function jarvisAtiende() {
+  addMessage('ai', '🟢 **J.A.R.V.I.S presente. Ejecutando protocolo de atención...**');
+  if (memory.name) addMessage('ai', '👤 Usuario: ' + memory.name);
+  getWeather();
+  setTimeout(getNews, 1000);
+  setTimeout(function() {
+    var notes = JSON.parse(localStorage.getItem('jarvis_notes') || '[]');
+    var reminders = JSON.parse(localStorage.getItem('jarvis_reminders') || '[]');
+    if (notes.length) addMessage('ai', '📝 **Notas guardadas:** ' + notes.length);
+    if (reminders.length) addMessage('ai', '⏰ **Recordatorios:** ' + reminders.length);
+    addMessage('ai', '✅ Protocolo completado. ¿En qué te ayudo?');
+    try { speak('Sistemas revisados. Todo en orden.'); } catch(e) {}
+  }, 3000);
+}
+
 function authLogout() {
   if (!confirm('¿Cerrar sesión?')) return;
   authState = { token: null, email: null, isOwner: false };
@@ -1217,6 +1350,7 @@ async function saveSetup() {
   document.getElementById('setup-modal').style.display='none';
   updateUI(); addLog('Perfil: '+name);
   setTimeout(()=>speak(`Perfecto ${name}. Soy J.A.R.V.I.S., tu asistente personal. Listo para servirte.`),300);
+  autoWelcome();
 }
 
 async function clearMemory() {
@@ -1347,6 +1481,8 @@ async function sendMessage(){
   if (adminReset) { adminResetUser(adminReset[2].trim()); loading=false; document.getElementById('send-btn').disabled=false; inp.focus(); return; }
   if (lower === 'cerrar sesion' || lower === 'cerrar sesión' || lower === 'logout' || lower === 'salir') { authLogout(); loading=false; document.getElementById('send-btn').disabled=false; inp.focus(); return; }
   if (lower.match(/mi\s*c[oó]digo\s*(de\s*)?recuperaci[oó]n|recovery\s*code/i)) { showRecoveryCode(); loading=false; document.getElementById('send-btn').disabled=false; inp.focus(); return; }
+  if (lower.match(/jarvis\s*atiende|presente|protocolo\s*atencion/i)) { jarvisAtiende(); loading=false; document.getElementById('send-btn').disabled=false; inp.focus(); return; }
+  if (lower === 'wake word' || lower === 'activar wake word' || lower === 'despertar') { toggleWakeWord(); loading=false; document.getElementById('send-btn').disabled=false; inp.focus(); return; }
   if (lower.match(/eliminar\s+(mi\s+)?cuenta|borrar\s+(mi\s+)?cuenta|delete\s+(my\s+)?account/i)) { authDeleteAccount(); loading=false; document.getElementById('send-btn').disabled=false; inp.focus(); return; }
   // Clima por ciudad (flexible: "clima en X", "dame el clima de X", "cual es el clima en X")
   const cityWeather = lower.match(/(?:clima|weather|tiempo)\s+(?:en|de|para|por|desde\s+)?(.+)/i) || lower.match(/(?:dame|quiero|consulta|ver)\s+(?:el\s+)?clima\s+(?:en|de|para|por|desde)\s+(.+)/i) || lower.match(/(?:cual\s+es|como\s+esta|como\s+está|cómo\s+está|cómo\s+esta)\s+(?:el\s+)?(?:clima|tiempo)\s+(?:en|de|para|por|desde)\s+(.+)/i) || lower.match(/(?:qué|que|cómo|como)\s+(?:clima|tiempo)\s+(?:tiene|hace|hay|esta|está)\s+(?:en\s+)?(.+)/i);

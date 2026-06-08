@@ -2264,24 +2264,26 @@ async function refreshContext() {
 async function getWeather() {
   addLog('Consultando clima...');
   showTyping();
-  await refreshContext();
+  try { await refreshContext(); } catch(e) {}
   if(!weatherCache) { removeTyping(); addMessage('ai','❌ No se pudo obtener el clima.'); return; }
+  let lat, lon;
   try {
-    let lat, lon;
-    try {
-      const pos = await new Promise((ok,err)=>navigator.geolocation.getCurrentPosition(ok,err,{timeout:5000,enableHighAccuracy:false}));
-      lat = pos.coords.latitude; lon = pos.coords.longitude;
-    } catch(e) {
-      if(!ipDataCache) { const r=await fetch('https://ipapi.co/json/'); ipDataCache=await r.json(); }
-      lat = ipDataCache.latitude; lon = ipDataCache.longitude;
-    }
+    const pos = await new Promise((ok,err)=>navigator.geolocation.getCurrentPosition(ok,err,{timeout:5000,enableHighAccuracy:false}));
+    lat = pos.coords.latitude; lon = pos.coords.longitude;
+  } catch(e) {
+    if(!ipDataCache) { try { const r=await fetch('https://ipapi.co/json/'); ipDataCache=await r.json(); } catch(e2){} }
+    lat = ipDataCache?.latitude; lon = ipDataCache?.longitude;
+  }
+  if(lat==null) { removeTyping(); addMessage('ai','❌ No se pudo determinar ubicación.'); return; }
+  let msg = '';
+  try {
     const w = await (await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m,wind_direction_10m,uv_index&daily=temperature_2m_max,temperature_2m_min,weather_code,precipitation_sum,precipitation_probability_max,sunrise,sunset,wind_speed_10m_max&timezone=auto&forecast_days=3`)).json();
     const c = w.current || {};
     const wCode = c.weather_code != null ? c.weather_code : 0;
     const desc = {0:'☀️ Despejado',1:'🌤 Mayormente despejado',2:'⛅ Parcialmente nublado',3:'☁️ Nublado',45:'🌫 Niebla',48:'🌫 Niebla con escarcha',51:'🌦 Llovizna ligera',53:'🌦 Llovizna moderada',55:'🌦 Llovizna densa',56:'🌦 Llovizna helada',57:'🌦 Llovizna helada densa',61:'🌧 Lluvia ligera',63:'🌧 Lluvia moderada',65:'🌧 Lluvia fuerte',66:'🌧 Lluvia helada ligera',67:'🌧 Lluvia helada fuerte',71:'❄️ Nieve ligera',73:'❄️ Nieve moderada',75:'❄️ Nieve fuerte',77:'❄️ Granos de nieve',80:'🌦 Chubascos ligeros',81:'🌦 Chubascos moderados',82:'🌦 Chubascos violentos',85:'❄️ Chubascos de nieve ligeros',86:'❄️ Chubascos de nieve fuertes',95:'⛈ Tormenta',96:'⛈ Tormenta con granizo',99:'⛈ Tormenta con granizo fuerte'}[wCode] || '—';
     const windDir = c.wind_direction_10m != null ? ['N','NE','E','SE','S','SO','O','NO'][Math.round(c.wind_direction_10m/45)%8] : '';
     const d = w.daily || {};
-    let msg = '🌤️ **Clima en ' + locationCache + '**\n\n**Ahora:**\n' + desc + '\n🌡️ **Temperatura:** ' + (c.temperature_2m != null ? c.temperature_2m + '°C' : '—') + ' (sensación ' + (c.apparent_temperature != null ? c.apparent_temperature + '°C' : '—') + ')\n💧 **Humedad:** ' + (c.relative_humidity_2m != null ? c.relative_humidity_2m + '%' : '—') + '\n💨 **Viento:** ' + (c.wind_speed_10m != null ? c.wind_speed_10m + ' km/h' : '—') + ' ' + windDir + '\n☀️ **UV:** ' + (c.uv_index != null ? c.uv_index : '—') + '\n';
+    msg = '🌤️ **Clima en ' + locationCache + '**\n\n**Ahora:**\n' + desc + '\n🌡️ **Temperatura:** ' + (c.temperature_2m != null ? c.temperature_2m + '°C' : '—') + ' (sensación ' + (c.apparent_temperature != null ? c.apparent_temperature + '°C' : '—') + ')\n💧 **Humedad:** ' + (c.relative_humidity_2m != null ? c.relative_humidity_2m + '%' : '—') + '\n💨 **Viento:** ' + (c.wind_speed_10m != null ? c.wind_speed_10m + ' km/h' : '—') + ' ' + windDir + '\n☀️ **UV:** ' + (c.uv_index != null ? c.uv_index : '—') + '\n';
     if(d.time) {
       msg += '\n**Pronóstico 3 días:**\n';
       for(let i=0;i<d.time.length;i++) {
@@ -2293,14 +2295,13 @@ async function getWeather() {
       }
     }
     if(d.sunrise?.[0]) msg += '\n🌅 **Amanecer:** ' + new Date(d.sunrise[0]).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'}) + ' | 🌇 **Atardecer:** ' + new Date(d.sunset[0]).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
-    removeTyping();
-    addMessage('ai', msg);
-    addLog('Clima mostrado para ' + locationCache);
   } catch(e) {
-    removeTyping();
-    addMessage('ai', '❌ No se pudo obtener el clima. Intenta más tarde.');
-    addLog('Error clima: ' + e.message);
+    addLog('Error detalle clima: ' + e.message);
+    msg = weatherCache || '❌ No se pudo obtener el clima.';
   }
+  removeTyping();
+  addMessage('ai', msg);
+  addLog('Clima mostrado');
 }
 
 /* =========================================================

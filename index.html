@@ -485,6 +485,11 @@
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg>
         CLIMA
       </div>
+      <div class="divider"></div>
+      <div class="sys-btn" onclick="authLogout()" style="font-size:10px;color:rgba(255,107,53,0.6)">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        CERRAR SESIÓN
+      </div>
     </div>
 
     <div class="chat-area">
@@ -647,6 +652,23 @@
     <label>TOKEN HUGGING FACE (opcional, para imágenes)</label>
     <input type="text" id="setup-hf" placeholder="hf_...  (gratis en huggingface.co/settings/tokens)"/>
     <button class="modal-btn" onclick="saveSetup()">INICIALIZAR J.A.R.V.I.S</button>
+  </div>
+</div>
+
+<!-- Auth login/register modal -->
+<div class="modal-overlay" id="auth-modal" style="display:none;">
+  <div class="modal">
+    <h3 id="auth-title">J.A.R.V.I.S</h3>
+    <p id="auth-sub">Inicia sesión o regístrate para usar J.A.R.V.I.S</p>
+    <label>USUARIO</label>
+    <input type="text" id="auth-user" placeholder="Tu nombre de usuario..." maxlength="20" autocomplete="username"/>
+    <label>CONTRASEÑA</label>
+    <input type="password" id="auth-pass" placeholder="••••••••" autocomplete="current-password"/>
+    <div id="auth-error" style="color:#ff6b6b;font-size:12px;margin-bottom:12px;display:none;"></div>
+    <button class="modal-btn" id="auth-btn" onclick="authLogin()">INICIAR SESIÓN</button>
+    <div style="margin-top:12px;text-align:center;">
+      <span style="font-size:12px;color:var(--text-dim);cursor:pointer;" id="auth-toggle" onclick="authToggle()">¿No tienes cuenta? <strong style="color:var(--primary);">REGÍSTRATE</strong></span>
+    </div>
   </div>
 </div>
 
@@ -842,6 +864,168 @@ function updateUI() {
   }
 }
 
+// ===== MULTI-USER AUTH =====
+let authState = { token: null, username: null, isOwner: false };
+let authMode = 'login';
+
+async function initAuth() {
+  authState.token = localStorage.getItem('jarvis_auth_token');
+  authState.username = localStorage.getItem('jarvis_auth_user');
+  if (authState.token && authState.username) {
+    try {
+      const res = await fetch(SERVER+'/api/user/load', { headers: { 'x-auth-token': authState.token } });
+      if (!res.ok) throw new Error('Token expired');
+      const data = await res.json();
+      memory = { ...memory, name: data.name||'', job: data.job||'', interests: data.interests||'', facts: data.facts||[], chatHistory: data.chatHistory||[], sessions: data.sessions||0 };
+      memory.sessions++;
+      syncUserData();
+      updateUI();
+      if (!memory.name) { document.getElementById('setup-modal').style.display='flex'; }
+      else { document.getElementById('welcome-msg').textContent='Sesión #'+memory.sessions+'. ¿En qué puedo asistirte?'; addLog('Bienvenido, '+memory.name); setTimeout(()=>speak('Bienvenido de nuevo '+memory.name+'. Sesión '+memory.sessions+' iniciada.'),500); }
+      // Load per-user localStorage data
+      if (data.notes) localStorage.setItem('jarvis_notes', JSON.stringify(data.notes));
+      if (data.shopping) localStorage.setItem('jarvis_shopping', JSON.stringify(data.shopping));
+      if (data.reminders) localStorage.setItem('jarvis_reminders', JSON.stringify(data.reminders));
+      if (data.sessionHistory) sessionHistory = data.sessionHistory;
+      addLog('Auth: '+authState.username);
+      return;
+    } catch(e) {
+      localStorage.removeItem('jarvis_auth_token');
+      localStorage.removeItem('jarvis_auth_user');
+      authState = { token: null, username: null, isOwner: false };
+    }
+  }
+  document.getElementById('auth-modal').style.display='flex';
+  document.getElementById('auth-user').focus();
+}
+
+function authToggle() {
+  authMode = authMode === 'login' ? 'register' : 'login';
+  if (authMode === 'register') {
+    document.getElementById('auth-title').textContent = 'REGISTRO';
+    document.getElementById('auth-sub').textContent = 'Crea tu cuenta para usar J.A.R.V.I.S';
+    document.getElementById('auth-btn').textContent = 'CREAR CUENTA';
+    document.getElementById('auth-btn').onclick = authRegister;
+    document.getElementById('auth-toggle').innerHTML = '¿Ya tienes cuenta? <strong style="color:var(--primary);">INICIA SESIÓN</strong>';
+  } else {
+    document.getElementById('auth-title').textContent = 'J.A.R.V.I.S';
+    document.getElementById('auth-sub').textContent = 'Inicia sesión para usar J.A.R.V.I.S';
+    document.getElementById('auth-btn').textContent = 'INICIAR SESIÓN';
+    document.getElementById('auth-btn').onclick = authLogin;
+    document.getElementById('auth-toggle').innerHTML = '¿No tienes cuenta? <strong style="color:var(--primary);">REGÍSTRATE</strong>';
+  }
+  document.getElementById('auth-error').style.display = 'none';
+}
+
+function authShowError(msg) {
+  const el = document.getElementById('auth-error');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+async function authLogin() {
+  const username = document.getElementById('auth-user').value.trim();
+  const password = document.getElementById('auth-pass').value;
+  if (!username || !password) { authShowError('Completa todos los campos'); return; }
+  try {
+    const res = await fetch(SERVER+'/api/login', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({username, password}) });
+    const data = await res.json();
+    if (!res.ok) { authShowError(data.error || 'Error de conexión'); return; }
+    authState = { token: data.token, username, isOwner: data.isOwner };
+    localStorage.setItem('jarvis_auth_token', data.token);
+    localStorage.setItem('jarvis_auth_user', username);
+    if (data.data) {
+      const d = data.data;
+      memory = { ...memory, name: d.name||'', job: d.job||'', interests: d.interests||'', facts: d.facts||[], chatHistory: d.chatHistory||[], sessions: d.sessions||0 };
+      if (d.notes) localStorage.setItem('jarvis_notes', JSON.stringify(d.notes));
+      if (d.shopping) localStorage.setItem('jarvis_shopping', JSON.stringify(d.shopping));
+      if (d.reminders) localStorage.setItem('jarvis_reminders', JSON.stringify(d.reminders));
+      if (d.sessionHistory) sessionHistory = d.sessionHistory;
+    }
+    memory.sessions++;
+    document.getElementById('auth-modal').style.display = 'none';
+    updateUI();
+    if (!memory.name) { document.getElementById('setup-modal').style.display='flex'; }
+    else { document.getElementById('welcome-msg').textContent='Sesión #'+memory.sessions+'. ¿En qué puedo asistirte?'; addLog('Bienvenido, '+memory.name); setTimeout(()=>speak('Bienvenido de nuevo '+memory.name+'. Sesión '+memory.sessions+' iniciada.'),500); }
+    syncUserData();
+  } catch(e) { authShowError('Error de conexión: '+e.message); }
+}
+
+async function authRegister() {
+  const username = document.getElementById('auth-user').value.trim();
+  const password = document.getElementById('auth-pass').value;
+  if (!username || !password) { authShowError('Completa todos los campos'); return; }
+  if (password.length < 4) { authShowError('La contraseña debe tener al menos 4 caracteres'); return; }
+  try {
+    const res = await fetch(SERVER+'/api/register', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({username, password}) });
+    const data = await res.json();
+    if (!res.ok) { authShowError(data.error || 'Error de conexión'); return; }
+    authState = { token: data.token, username, isOwner: data.isOwner };
+    localStorage.setItem('jarvis_auth_token', data.token);
+    localStorage.setItem('jarvis_auth_user', username);
+    document.getElementById('auth-modal').style.display = 'none';
+    document.getElementById('setup-modal').style.display = 'flex';
+    addLog('Registrado: '+username+(data.isOwner?' (dueño)':''));
+  } catch(e) { authShowError('Error de conexión: '+e.message); }
+}
+
+async function syncUserData() {
+  if (!authState.token) return;
+  const data = {
+    name: memory.name, job: memory.job, interests: memory.interests,
+    facts: memory.facts, chatHistory: memory.chatHistory,
+    sessions: memory.sessions,
+    notes: JSON.parse(localStorage.getItem('jarvis_notes') || '[]'),
+    shopping: JSON.parse(localStorage.getItem('jarvis_shopping') || '[]'),
+    reminders: JSON.parse(localStorage.getItem('jarvis_reminders') || '[]'),
+    sessionHistory: sessionHistory
+  };
+  fetch(SERVER+'/api/user/save', { method:'POST', headers:{'Content-Type':'application/json','x-auth-token':authState.token}, body:JSON.stringify(data) }).catch(function(){});
+}
+
+function authLogout() {
+  if (!confirm('¿Cerrar sesión?')) return;
+  authState = { token: null, username: null, isOwner: false };
+  localStorage.removeItem('jarvis_auth_token');
+  localStorage.removeItem('jarvis_auth_user');
+  memory = { name:'', job:'', interests:'', sessions:0, facts:[], chatHistory:[] };
+  sessionHistory = [];
+  document.getElementById('messages').innerHTML = '';
+  document.getElementById('messages').style.display = 'none';
+  document.getElementById('welcome').style.display = 'flex';
+  updateUI();
+  document.getElementById('auth-modal').style.display = 'flex';
+  document.getElementById('auth-user').focus();
+}
+
+function showAdmin() {
+  if (!authState.isOwner) { addMessage('ai','❌ Solo el dueño puede administrar usuarios.'); return; }
+  fetch(SERVER+'/api/admin/users', { headers: { 'x-auth-token': authState.token } })
+    .then(r => r.json())
+    .then(users => {
+      let msg = '👑 **Panel de Administración**\n\n**Usuarios registrados:**\n';
+      users.forEach(u => {
+        const created = new Date(u.created).toLocaleDateString('es-MX');
+        const last = new Date(u.lastLogin).toLocaleDateString('es-MX');
+        msg += `\n${u.isOwner ? '👑' : '👤'} **${u.username}** ${u.isOwner ? '(dueño)' : ''}\n   └ Creado: ${created} | Último acceso: ${last}`;
+        if (!u.isOwner) msg += ` | [Eliminar](/admin/del/${u.username})`;
+      });
+      msg += '\n\nPara eliminar un usuario: `admin eliminar NOMBRE`';
+      addMessage('ai', msg);
+    })
+    .catch(e => addMessage('ai', '❌ Error: '+e.message));
+}
+
+async function adminDeleteUser(username) {
+  if (!authState.isOwner) return;
+  try {
+    const res = await fetch(SERVER+'/api/admin/user/'+encodeURIComponent(username), { method:'DELETE', headers: { 'x-auth-token': authState.token } });
+    const data = await res.json();
+    if (res.ok) addMessage('ai', '✅ Usuario **'+username+'** eliminado.');
+    else addMessage('ai', '❌ '+data.error);
+  } catch(e) { addMessage('ai', '❌ Error: '+e.message); }
+}
+
 async function loadMemory() {
   try{
     const res=await fetch(SERVER+'/memory');
@@ -867,7 +1051,11 @@ async function saveSetup() {
   const hf=document.getElementById('setup-hf').value.trim();
   memory.name=name; memory.job=job; memory.interests=interests;
   if(hf) { hfToken=hf; localStorage.setItem('jarvis_hf_token', hf); updateImgEngineUI(); }
-  await fetch(SERVER+'/memory',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,job,interests})}).catch(function(){});
+  if (authState.token) {
+    await fetch(SERVER+'/api/user/save',{method:'POST',headers:{'Content-Type':'application/json','x-auth-token':authState.token},body:JSON.stringify({name,job,interests})}).catch(function(){});
+  } else {
+    await fetch(SERVER+'/memory',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,job,interests})}).catch(function(){});
+  }
   document.getElementById('setup-modal').style.display='none';
   updateUI(); addLog('Perfil: '+name);
   setTimeout(()=>speak(`Perfecto ${name}. Soy J.A.R.V.I.S., tu asistente personal. Listo para servirte.`),300);
@@ -875,7 +1063,11 @@ async function saveSetup() {
 
 async function clearMemory() {
   if(confirm('¿Borrar toda la memoria?')){
-    await fetch(SERVER+'/memory',{method:'DELETE'}).catch(function(){});
+    if (authState.token) {
+      await fetch(SERVER+'/api/user/save',{method:'POST',headers:{'Content-Type':'application/json','x-auth-token':authState.token},body:JSON.stringify({name:'',job:'',interests:'',facts:[],chatHistory:[],sessions:0})}).catch(function(){});
+    } else {
+      await fetch(SERVER+'/memory',{method:'DELETE'}).catch(function(){});
+    }
     memory={name:"",job:"",interests:"",sessions:0,facts:[],chatHistory:[]};
     updateUI(); document.getElementById('setup-modal').style.display='flex';
   }
@@ -989,8 +1181,13 @@ async function sendMessage(){
   synth.cancel(); addMessage('user',text); playSound('send');
   // Detectar comandos locales antes de llamar a la IA
   const lower = text.toLowerCase();
+  // Admin commands
+  if (lower === 'admin usuarios' || lower === 'admin users' || lower === 'panel admin' || lower === 'admin panel') { showAdmin(); loading=false; document.getElementById('send-btn').disabled=false; inp.focus(); return; }
+  const adminDel = lower.match(/admin\s+(eliminar|delete|borrar)\s+(.+)/i);
+  if (adminDel) { adminDeleteUser(adminDel[2].trim()); loading=false; document.getElementById('send-btn').disabled=false; inp.focus(); return; }
+  if (lower === 'cerrar sesion' || lower === 'cerrar sesión' || lower === 'logout' || lower === 'salir') { authLogout(); loading=false; document.getElementById('send-btn').disabled=false; inp.focus(); return; }
   // Clima por ciudad (flexible: "clima en X", "dame el clima de X", "cual es el clima en X")
-  const cityWeather = lower.match(/(?:clima|weather|tiempo)\s+(?:en|de|para|por|desde)\s+(.+)/i) || lower.match(/(?:dame|cual\s+es|como\s+esta|como\s+está|quiero|consulta|ver)\s+(?:el\s+)?clima\s+(?:en|de|para|por|desde)\s+(.+)/i);
+  const cityWeather = lower.match(/(?:clima|weather|tiempo)\s+(?:en|de|para|por|desde\s+)?(.+)/i) || lower.match(/(?:dame|quiero|consulta|ver)\s+(?:el\s+)?clima\s+(?:en|de|para|por|desde)\s+(.+)/i) || lower.match(/(?:cual\s+es|como\s+esta|como\s+está|cómo\s+está|cómo\s+esta)\s+(?:el\s+)?(?:clima|tiempo)\s+(?:en|de|para|por|desde)\s+(.+)/i) || lower.match(/(?:qué|que|cómo|como)\s+(?:clima|tiempo)\s+(?:tiene|hace|hay|esta|está)\s+(?:en\s+)?(.+)/i);
   if(cityWeather) { getWeatherForCity(cityWeather[1].trim()); loading=false; document.getElementById('send-btn').disabled=false; inp.focus(); return; }
   // Clima actual (cualquier mensaje que pida clima sin mencionar ciudad)
   if(/clima/i.test(lower) && !/laboral|organizacional|empresarial/i.test(lower)) { await getWeather(); loading=false; document.getElementById('send-btn').disabled=false; inp.focus(); return; }
@@ -1026,6 +1223,7 @@ async function sendMessage(){
     if(fact) memory.facts=[...memory.facts,fact].slice(-20);
     memory.chatHistory=[...memory.chatHistory,histEntry].slice(-20);
     fetch(SERVER+'/memory/fact',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({fact:fact||null,history:histEntry})}).catch(function(){});
+    syncUserData();
     if(fact) updateUI();
     addMessage('ai',reply); addLog('Respuesta recibida'); speak(reply); playSound('receive'); setHoloState('speaking');
 
@@ -1830,6 +2028,7 @@ function addNote(text) {
   let notes = JSON.parse(localStorage.getItem('jarvis_notes') || '[]');
   notes.push({text: text, date: new Date().toLocaleString('es-MX')});
   localStorage.setItem('jarvis_notes', JSON.stringify(notes.slice(-20)));
+  syncUserData();
   addMessage('ai','📌 **Nota guardada:**\n_' + text.substring(0,200) + '_\n\n_Di "ver notas" para ver todas._');
 }
 function listNotes() {
@@ -1839,12 +2038,13 @@ function listNotes() {
   notes.forEach(function(n,i){ html += '**'+(i+1)+'.** ' + n.text.substring(0,150) + '\n_(' + n.date + ')_\n\n'; });
   addMessage('ai', html);
 }
-function clearNotes() { localStorage.removeItem('jarvis_notes'); addMessage('ai','📌 Notas eliminadas.'); }
+function clearNotes() { localStorage.removeItem('jarvis_notes'); syncUserData(); addMessage('ai','📌 Notas eliminadas.'); }
 // Lista de compras (localStorage)
 function shoppingAdd(item) {
   let list = JSON.parse(localStorage.getItem('jarvis_shopping') || '[]');
   list.push({item: item, done: false});
   localStorage.setItem('jarvis_shopping', JSON.stringify(list));
+  syncUserData();
   addMessage('ai','🛒 **Añadido:** ' + item + '\n_Di "ver lista" para ver todo._');
 }
 function shoppingList() {
@@ -1865,10 +2065,10 @@ function shoppingDone(item) {
     if(x.item.toLowerCase() === item.toLowerCase() && !x.done) { found = true; return {item: x.item, done: true}; }
     return x;
   });
-  if(found) { localStorage.setItem('jarvis_shopping', JSON.stringify(list)); addMessage('ai','✅ **Comprado:** ' + item); }
+  if(found) { localStorage.setItem('jarvis_shopping', JSON.stringify(list)); syncUserData(); addMessage('ai','✅ **Comprado:** ' + item); }
   else addMessage('ai','❌ No encontré "' + item + '" en la lista pendiente.');
 }
-function shoppingClear() { localStorage.removeItem('jarvis_shopping'); addMessage('ai','🛒 Lista de compras eliminada.'); }
+function shoppingClear() { localStorage.removeItem('jarvis_shopping'); syncUserData(); addMessage('ai','🛒 Lista de compras eliminada.'); }
 const uiCommands = {
   'abrir sidebar': function(){ openSidebar(); },
   'cerrar sidebar': function(){ closeSidebar(); },
@@ -2155,6 +2355,7 @@ function saveSession() {
   // keep max 10
   while(sessions.length > 10) sessions.pop();
   localStorage.setItem('jarvis_sessions', JSON.stringify(sessions));
+  syncUserData();
   renderSessions();
 }
 
@@ -2363,6 +2564,7 @@ function setReminder(what, ms) {
   const entry = { what, time: when.getTime(), id: Date.now() };
   reminders.push(entry);
   localStorage.setItem('jarvis_reminders', JSON.stringify(reminders));
+  syncUserData();
   addMessage('ai', '⏰ **Recordatorio guardado:** "'+what+'" en '+(ms>=3600000?(ms/3600000).toFixed(1)+'h':(ms>=60000?(ms/60000).toFixed(0)+'min':(ms/1000).toFixed(0)+'s'))+' ('+when.toLocaleTimeString('es-MX')+')');
   addLog('Recordatorio: '+what);
   showToast('⏰ Recordatorio en '+(ms>=3600000?(ms/3600000).toFixed(1)+'h':(ms/60000).toFixed(0)+'min'));
@@ -2901,7 +3103,15 @@ function clearHighlights() {
 // Atajo Ctrl+F
 document.addEventListener('keydown', function(e) {
   if(e.ctrlKey && e.key === 'f') { e.preventDefault(); toggleSearch(); }
-  if(e.key === 'Escape') { closeSearch(); const sm=document.getElementById('setup-modal'); if(sm && sm.style.display==='flex') sm.style.display='none'; }
+  if(e.key === 'Escape') { closeSearch(); const sm=document.getElementById('setup-modal'); if(sm && sm.style.display==='flex') sm.style.display='none'; const am=document.getElementById('auth-modal'); if(am && am.style.display==='flex') am.style.display='none'; }
+});
+
+// Auth modal Enter key
+document.getElementById('auth-pass').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') { e.preventDefault(); document.getElementById('auth-btn').click(); }
+});
+document.getElementById('auth-user').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') { e.preventDefault(); document.getElementById('auth-pass').focus(); }
 });
 
 // Sidebar toggle para móvil
@@ -2936,7 +3146,7 @@ function closeSidebar() {
 // Auto-detect IP on load
 setTimeout(detectIP, 1500);
 
-loadMemory();
+initAuth();
 loadFontSize();
 initThemes();
 initLangs();

@@ -1485,6 +1485,7 @@ async function sendMessage(){
   inp.value=''; inp.style.height='auto';
   loading=true; document.getElementById('send-btn').disabled=true;
   synth.cancel(); addMessage('user',text); playSound('send');
+  try {
   // Detectar comandos locales antes de llamar a la IA
   const lower = text.toLowerCase();
   // Admin commands
@@ -1626,7 +1627,7 @@ async function sendMessage(){
   }catch(err){
     removeTyping(); const isRL = err.rateLimit || (err.message && /rate.limit|429|espera/i.test(err.message)); addMessage('ai','⚠️ **Error:** '+err.message+(isRL?'\n_⏳ Demasiadas peticiones. Espera 30 segundos y reintenta._':'\n_Reintenta en unos segundos._'));     addLog('Error: '+err.message); playSound('error'); setHoloState('idle');
   }
-  loading=false; document.getElementById('send-btn').disabled=false; inp.focus();
+  }finally{ loading=false; document.getElementById('send-btn').disabled=false; inp.focus(); }
 }
 
 function sendSuggestion(t){ document.getElementById('input').value=t; sendMessage(); }

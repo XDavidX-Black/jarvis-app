@@ -1155,6 +1155,23 @@ async function adminResetUser(email) {
   } catch(e) { addMessage('ai', '❌ Error: '+e.message); }
 }
 
+async function authDeleteAccount() {
+  if (!confirm('¿Estás seguro? Se borrará toda tu información. Esta acción no se puede deshacer.')) return;
+  if (!authState.isOwner && !confirm('⚠️ Tus chats, notas y datos se perderán para siempre. ¿Continuar?')) return;
+  try {
+    const res = await fetch(SERVER+'/api/user/delete-account', { method:'POST', headers: { 'x-auth-token': authState.token } });
+    const data = await res.json();
+    if (res.ok) {
+      addMessage('ai', '✅ '+data.message);
+      authState = { token: null, email: null, isOwner: false };
+      localStorage.removeItem('jarvis_auth_token');
+      localStorage.removeItem('jarvis_auth_email');
+      memory = { name:'', job:'', interests:'', sessions:0, facts:[], chatHistory:[] };
+      setTimeout(function(){ location.reload(); }, 2000);
+    } else addMessage('ai', '❌ '+data.error);
+  } catch(e) { addMessage('ai', '❌ Error: '+e.message); }
+}
+
 async function loadMemory() {
   try{
     const res=await fetch(SERVER+'/memory');
@@ -1317,6 +1334,7 @@ async function sendMessage(){
   const adminReset = lower.match(/admin\s+(reset|restablecer)\s+(.+)/i);
   if (adminReset) { adminResetUser(adminReset[2].trim()); loading=false; document.getElementById('send-btn').disabled=false; inp.focus(); return; }
   if (lower === 'cerrar sesion' || lower === 'cerrar sesión' || lower === 'logout' || lower === 'salir') { authLogout(); loading=false; document.getElementById('send-btn').disabled=false; inp.focus(); return; }
+  if (lower === 'eliminar mi cuenta' || lower === 'borrar mi cuenta' || lower === 'delete my account') { authDeleteAccount(); loading=false; document.getElementById('send-btn').disabled=false; inp.focus(); return; }
   // Clima por ciudad (flexible: "clima en X", "dame el clima de X", "cual es el clima en X")
   const cityWeather = lower.match(/(?:clima|weather|tiempo)\s+(?:en|de|para|por|desde\s+)?(.+)/i) || lower.match(/(?:dame|quiero|consulta|ver)\s+(?:el\s+)?clima\s+(?:en|de|para|por|desde)\s+(.+)/i) || lower.match(/(?:cual\s+es|como\s+esta|como\s+está|cómo\s+está|cómo\s+esta)\s+(?:el\s+)?(?:clima|tiempo)\s+(?:en|de|para|por|desde)\s+(.+)/i) || lower.match(/(?:qué|que|cómo|como)\s+(?:clima|tiempo)\s+(?:tiene|hace|hay|esta|está)\s+(?:en\s+)?(.+)/i);
   if(cityWeather) { getWeatherForCity(cityWeather[1].trim()); loading=false; document.getElementById('send-btn').disabled=false; inp.focus(); return; }

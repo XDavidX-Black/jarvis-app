@@ -975,6 +975,7 @@ async function authRegister() {
     authState = { token: data.token, email, isOwner: data.isOwner };
     localStorage.setItem('jarvis_auth_token', data.token);
     localStorage.setItem('jarvis_auth_email', email);
+    localStorage.setItem('jarvis_recovery_' + email, data.recoveryCode);
     document.getElementById('auth-btn').style.display = 'none';
     document.getElementById('auth-toggle').style.display = 'none';
     document.getElementById('auth-pass').style.display = 'none';
@@ -1048,8 +1049,8 @@ async function authResendRecovery() {
   try {
     const res = await fetch(SERVER+'/api/resend-recovery', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({email}) });
     const data = await res.json();
-    if (res.ok) authShowError('✅ Código enviado a '+email);
-    else authShowError('❌ '+data.error);
+    if (data.ok) authShowError('✅ Código enviado a '+email);
+    else authShowError((data.message || data.error || '❌ Error').substring(0,100));
   } catch(e) { authShowError('❌ Error: '+e.message); }
 }
 
@@ -1081,6 +1082,17 @@ async function authDoReset() {
     updateUI();
     addMessage('ai', '✅ Contraseña restablecida correctamente.');
   } catch(e) { authShowError('Error: '+e.message); }
+}
+
+function showRecoveryCode() {
+  const email = authState.email;
+  if (!email) { addMessage('ai', '❌ No has iniciado sesión.'); return; }
+  const code = localStorage.getItem('jarvis_recovery_' + email);
+  if (code) {
+    addMessage('ai', '🔐 **Tu código de recuperación:**\n\n`' + code + '`\n\nGuárdalo en un lugar seguro. Sin él no podrás recuperar tu cuenta.');
+  } else {
+    addMessage('ai', '❌ No tengo un código guardado para `' + email + '`. Si iniciaste sesión, intenta reenviarlo desde la pantalla de recuperación.');
+  }
 }
 
 async function syncUserData() {
@@ -1334,6 +1346,7 @@ async function sendMessage(){
   const adminReset = lower.match(/admin\s+(reset|restablecer)\s+(.+)/i);
   if (adminReset) { adminResetUser(adminReset[2].trim()); loading=false; document.getElementById('send-btn').disabled=false; inp.focus(); return; }
   if (lower === 'cerrar sesion' || lower === 'cerrar sesión' || lower === 'logout' || lower === 'salir') { authLogout(); loading=false; document.getElementById('send-btn').disabled=false; inp.focus(); return; }
+  if (lower.match(/mi\s*c[oó]digo\s*(de\s*)?recuperaci[oó]n|recovery\s*code/i)) { showRecoveryCode(); loading=false; document.getElementById('send-btn').disabled=false; inp.focus(); return; }
   if (lower.match(/eliminar\s+(mi\s+)?cuenta|borrar\s+(mi\s+)?cuenta|delete\s+(my\s+)?account/i)) { authDeleteAccount(); loading=false; document.getElementById('send-btn').disabled=false; inp.focus(); return; }
   // Clima por ciudad (flexible: "clima en X", "dame el clima de X", "cual es el clima en X")
   const cityWeather = lower.match(/(?:clima|weather|tiempo)\s+(?:en|de|para|por|desde\s+)?(.+)/i) || lower.match(/(?:dame|quiero|consulta|ver)\s+(?:el\s+)?clima\s+(?:en|de|para|por|desde)\s+(.+)/i) || lower.match(/(?:cual\s+es|como\s+esta|como\s+está|cómo\s+está|cómo\s+esta)\s+(?:el\s+)?(?:clima|tiempo)\s+(?:en|de|para|por|desde)\s+(.+)/i) || lower.match(/(?:qué|que|cómo|como)\s+(?:clima|tiempo)\s+(?:tiene|hace|hay|esta|está)\s+(?:en\s+)?(.+)/i);

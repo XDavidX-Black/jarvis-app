@@ -54,9 +54,9 @@
     --border: rgba(26,86,219,0.2); --text: #1a202c;
     --text-dim: rgba(26,32,44,0.55); --success: #059669; --bg-card: rgba(255,255,255,0.9);
   }
-  html { width:100%; height:100%; }
-  body { width:100%; height:100%; background:var(--bg); color:var(--text); font-family:'Rajdhani',sans-serif; overflow:hidden; -webkit-font-smoothing:antialiased; }
-  #app { position:relative; z-index:1; width:100%; height:100%; display:flex; flex-direction:column; }
+  html { width:100%; height:100%; height:100dvh; }
+  body { width:100%; height:100%; height:100dvh; background:var(--bg); color:var(--text); font-family:'Rajdhani',sans-serif; overflow:hidden; -webkit-font-smoothing:antialiased; }
+  #app { position:relative; z-index:1; width:100%; height:100%; height:100dvh; display:flex; flex-direction:column; }
 
   /* ===== SCROLLBAR GLOBAL ===== */
   ::-webkit-scrollbar { width:4px; height:4px; }
@@ -278,68 +278,81 @@
   .sidebar-overlay.open { display:block; }
 
   /* ===== RESPONSIVE ===== */
+  .apk-only { display:none; }
+  body.apk .apk-only { display:inline-flex; }
+
   @media (max-width: 640px) {
-    header { padding:10px 12px; }
-    .logo-text { font-size:14px; letter-spacing:3px; }
+    header { padding:8px 10px; }
+    .logo-text { font-size:13px; letter-spacing:2px; }
     .logo-sub { display:none; }
     .status-bar span:not(.clock):not(#user-greeting) { display:none; }
-    .status-bar { gap:8px; font-size:10px; }
-    .clock { font-size:10px; }
+    .status-bar { gap:6px; font-size:9px; }
+    .clock { font-size:9px; }
+    #user-greeting { font-size:8px; max-width:80px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     .sidebar { display:none; }
     .sidebar.open { display:flex !important; position:fixed; top:0; left:0; width:220px; height:100%; z-index:50; border-right:1px solid var(--border); box-shadow:0 0 40px rgba(0,0,0,0.6); }
     .sys-panel { display:none; }
     .main { flex-direction:column; }
     .chat-area { width:100%; }
-    .messages { padding:12px 10px; gap:10px; }
-    .bubble { font-size:14px; padding:9px 12px; }
+    .messages { padding:10px 8px; gap:8px; }
+    .bubble { font-size:13px; padding:8px 10px; }
     .msg-inner { max-width:100%; }
     .msg-img { max-width:200px; }
-    .avatar { width:28px; height:28px; font-size:8px; }
-    .welcome h2 { font-size:20px; letter-spacing:4px; }
-    .welcome p { font-size:12px; max-width:300px; }
-    .tools-bar { padding:6px 10px; gap:4px; }
-    .tool-btn { font-size:9px; padding:4px 7px; }
-    .tool-btn span { display:none; }
-    .input-area { padding:10px 12px 14px; }
-    textarea { font-size:14px; padding:10px 12px 10px 32px; min-height:42px; }
-    .input-wrap::before { left:10px; top:11px; font-size:10px; }
-    .send-btn, .mic-btn { width:42px; height:42px; }
-    .input-footer { font-size:9px; flex-direction:column; gap:2px; }
-    .suggestions { gap:5px; }
-    .sug-btn { font-size:11px; padding:5px 10px; }
-    .modal { padding:20px; max-width:90vw; }
-    .modal h3 { font-size:17px; }
-    .modal p { font-size:12px; }
-    .dash-grid { gap:10px; }
-    .dash-time { font-size:30px; }
+    .avatar { width:24px; height:24px; font-size:7px; min-width:24px; }
+    .welcome h2 { font-size:18px; letter-spacing:3px; }
+    .welcome p { font-size:11px; max-width:260px; }
+    .tools-bar { padding:4px 6px; gap:3px; }
+    .tool-btn { font-size:8px; padding:3px 5px; }
+    .tool-btn svg { width:9px; height:9px; }
+    .input-area { padding:8px 8px 10px; }
+    textarea { font-size:14px; padding:8px 10px 8px 28px; min-height:38px; }
+    .input-wrap::before { left:8px; top:9px; font-size:9px; content:'💬'; }
+    .send-btn, .mic-btn { width:36px; height:36px; min-width:36px; }
+    .send-btn svg, .mic-btn svg { width:14px; height:14px; }
+    .input-footer { font-size:8px; flex-direction:column; gap:2px; }
+    .suggestions { gap:4px; }
+    .sug-btn { font-size:10px; padding:4px 8px; }
+    .modal { padding:16px; max-width:92vw; }
+    .modal h3 { font-size:16px; }
+    .modal p { font-size:11px; }
+    .dash-grid { gap:8px; }
+    .dash-time { font-size:26px; }
     #img-modal img { max-width:95vw; max-height:80vh; }
     .menu-toggle { display:flex !important; }
-    .welcome { padding:20px 16px; }
-    .welcome h2 { font-size:18px; letter-spacing:3px; }
-    .dash-card { padding:12px; }
+    .welcome { padding:16px 12px; }
+    .welcome h2 { font-size:16px; letter-spacing:2px; }
+    .dash-card { padding:10px; }
     .chat-table { display:block; overflow-x:auto; }
+    .msg-label { font-size:8px; }
+    .msg-action { font-size:10px; }
+    .header-right { display:flex; align-items:center; gap:6px; }
+    .chat-area { min-height:0; }
   }
   @media (max-width: 400px) {
-    header { padding:8px; }
-    .logo-text { font-size:12px; letter-spacing:2px; }
-    .logo svg { width:28px; height:28px; }
-    .menu-toggle { width:32px; height:32px; }
-    .welcome h2 { font-size:16px; letter-spacing:2px; }
-    .welcome { padding:16px 12px; }
-    .bubble { font-size:13px; padding:7px 10px; }
-    .dash-time { font-size:24px; }
-    .dash-grid { gap:6px; }
-    .chat-table { font-size:11px; }
+    header { padding:6px 6px; }
+    .logo-text { font-size:11px; letter-spacing:1px; }
+    .logo svg { width:24px; height:24px; }
+    .menu-toggle { width:28px; height:28px; }
+    .welcome h2 { font-size:14px; letter-spacing:1px; }
+    .welcome { padding:12px 8px; }
+    .bubble { font-size:12px; padding:6px 8px; }
+    .dash-time { font-size:20px; }
+    .dash-grid { gap:4px; }
+    .chat-table { font-size:10px; }
+    .tools-bar { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    .tool-btn { white-space:nowrap; }
   }
   @media (min-width: 641px) and (max-width: 1024px) {
     .sys-panel { display:none; }
-    header { padding:12px 16px; }
-    .logo-text { font-size:16px; }
-    .sidebar { width:170px; }
+    header { padding:10px 16px; }
+    .logo-text { font-size:15px; }
+    .sidebar { width:160px; }
     .messages { padding:14px 16px; }
     .msg-inner { max-width:480px; }
-    .input-area { padding:12px 16px 16px; }
+    .input-area { padding:10px 16px 14px; }
     .bubble { font-size:14px; }
+    .tools-bar { gap:4px; }
+    .tool-btn { font-size:9px; padding:4px 8px; }
   }
 </style>
 </head>
@@ -527,11 +540,11 @@
         </button>
         <button class="tool-btn" id="wake-btn" onclick="toggleWakeWord()" title="Wake word: di 'Jarvis' para activar">
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
-          🎤
+          <span>🎤</span>
         </button>
-        <button class="tool-btn" id="prox-btn" onclick="toggleProximity()" title="Activar por proximidad (APK)">
+        <button class="tool-btn apk-only" id="prox-btn" onclick="toggleProximity()" title="Activar por proximidad (APK)">
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-          👁
+          <span>👁</span>
         </button>
       </div>
       <div class="drop-zone" id="drop-zone"><span>+ SOLTAR ARCHIVO</span></div>
@@ -903,6 +916,7 @@ async function initAuth() {
       if (data.shopping) localStorage.setItem('jarvis_shopping', JSON.stringify(data.shopping));
       if (data.reminders) localStorage.setItem('jarvis_reminders', JSON.stringify(data.reminders));
       if (data.sessionHistory) sessionHistory = data.sessionHistory;
+      if (isAndroidWebView()) document.body.classList.add('apk');
       addLog('Auth: '+authState.email);
       return;
     } catch(e) {
